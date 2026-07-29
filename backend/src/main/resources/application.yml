@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: test0731-system-admin
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://postgres:5432/test0731}
+    username: ${DATABASE_USERNAME:test0731}
+    password: ${DATABASE_PASSWORD:test0731_password}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+mybatis:
+  mapper-locations: classpath:mappers/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

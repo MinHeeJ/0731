@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16.6-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-test0731}
+      POSTGRES_USER: ${POSTGRES_USER:-test0731}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test0731_password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  backend:
+    image: test0731-system-admin-backend:0.1.0
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    pull_policy: build
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/test0731
+      DATABASE_USERNAME: ${POSTGRES_USER:-test0731}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-test0731_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "19080:8080"
+  frontend:
+    image: test0731-system-admin-frontend:0.1.0
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    pull_policy: build
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "19000:80"
+volumes:
+  postgres-data:
