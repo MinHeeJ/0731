@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: faculty-evaluation-common
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://database:5432/knue_common}
+    username: ${SPRING_DATASOURCE_USERNAME:knue}
+    password: ${SPRING_DATASOURCE_PASSWORD:knue_password}
+  flyway:
+    enabled: true
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080

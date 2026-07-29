@@ -1,0 +1,7 @@
+target
+.git
+build
+coverage
+node_modules
+.next
+dist

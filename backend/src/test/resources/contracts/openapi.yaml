@@ -1,0 +1,2465 @@
+openapi: 3.0.3
+info:
+  title: 교수업적평가시스템 공통기능 1차 API
+  version: 0.1.0
+servers:
+- url: /
+security:
+- sessionCookie: []
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: 서비스 상태
+      x-related-requirements:
+      - REQ-021
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        status:
+                          type: string
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: 관리자 로그인
+      x-related-requirements:
+      - REQ-018
+      - REQ-020
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/LoginUser'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      x-business-rules:
+      - admin/admin 시드 계정은 Docker Compose 직후 로그인 가능해야 한다
+      - HttpOnly SameSite=Lax 세션 쿠키를 발급한다
+      x-side-effects:
+      - session 레코드를 ACTIVE 상태로 저장한다
+      - Set-Cookie 헤더로 세션 식별자를 발급한다
+      x-required-tests:
+      - 'happy: userId=admin,password=admin -> session.status=ACTIVE이고 GET /api/auth/me가 admin을 반환한다'
+      - 'auth: 잘못된 password -> 401과 ApiError.code=INVALID_CREDENTIALS를 반환한다'
+      - 'validation: userId 빈 값 -> fieldErrors.userId가 반환된다'
+      - 'business: DISABLED 계정 로그인 -> session 행이 생성되지 않는다'
+      - 'side-effect: 성공 로그인 -> session 테이블에 user_id=admin 행이 존재한다'
+      x-state-transitions:
+      - none -> ACTIVE
+  /api/auth/logout:
+    post:
+      operationId: logout
+      summary: 로그아웃
+      x-related-requirements:
+      - REQ-018
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      x-business-rules:
+      - 인증된 ACTIVE 세션만 로그아웃할 수 있다
+      x-side-effects:
+      - session.status를 LOGGED_OUT으로 변경한다
+      - 세션 쿠키 만료 헤더를 반환한다
+      x-required-tests:
+      - 'happy: 유효한 로그아웃 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 로그아웃 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-018의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> LOGGED_OUT
+  /api/auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: 현재 사용자
+      x-related-requirements:
+      - REQ-018
+      - REQ-013
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/LoginUser'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+  /api/admin/me:
+    get:
+      operationId: getAdminMenuContext
+      summary: 관리 메뉴 컨텍스트
+      x-related-requirements:
+      - REQ-013
+      - REQ-016
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        menus:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/Menu'
+                        roleCodes:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/RoleCode'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+  /api/admin/users:
+    get:
+      operationId: searchUsers
+      summary: 사용자 검색
+      x-related-requirements:
+      - REQ-001
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserSummary'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: employeeNo
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: name
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: organization
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: jobGrade
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: employmentStatus
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: roleCode
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: systemUseYn
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-001
+  /api/admin/users/{userId}/access:
+    patch:
+      operationId: updateUserAccess
+      summary: 사용여부 변경
+      x-related-requirements:
+      - REQ-001
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/UserSummary'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAccessUpdateRequest'
+      x-business-rules:
+      - KORUS 원천정보 필드는 변경할 수 없다
+      - systemUseYn은 Y 또는 N이어야 한다
+      x-side-effects:
+      - user_account.system_use_yn을 갱신한다
+      - change_history에 변경 전후 system_use_yn을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용여부 변경 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 사용여부 변경 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-001의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> DISABLED
+      - DISABLED -> ACTIVE
+      x-related-fr:
+      - CMN-FR-001
+  /api/admin/users/{userId}/roles:
+    put:
+      operationId: replaceUserBusinessRoles
+      summary: 사용자 업무역할 변경
+      x-related-requirements:
+      - REQ-001
+      - REQ-004
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserRoleAssignment'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRolesUpdateRequest'
+      x-business-rules:
+      - 하나 이상의 RoleCode를 지정해야 한다
+      - approverUserId와 validFrom은 필수다
+      x-side-effects:
+      - user_role_assignment 기존 MANUAL 역할을 종료하고 신규 역할을 ACTIVE로 저장한다
+      - change_history에 역할 목록 변경 전후를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 업무역할 변경 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 사용자 업무역할 변경 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-001의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> REVOKED
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-001
+      - CMN-FR-006
+  /api/admin/organizations:
+    get:
+      operationId: searchOrganizations
+      summary: 조직 계층 검색
+      x-related-requirements:
+      - REQ-002
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Organization'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: organizationCode
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: organizationName
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: organizationType
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-002
+  /api/admin/organizations/{organizationCode}/relation:
+    put:
+      operationId: updateOrganizationRelation
+      summary: 조직 관계 변경
+      x-related-requirements:
+      - REQ-002
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/Organization'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: organizationCode
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRelationRequest'
+      x-business-rules:
+      - effectiveStartDate는 기존 활성 관계 기간과 겹칠 수 없다
+      - 상위조직은 자기 자신 또는 하위조직일 수 없다
+      x-side-effects:
+      - organization_relation_history 신규 행을 저장한다
+      - 기존 활성 관계의 effective_end_date를 조정한다
+      - change_history에 상위조직 변경 사유를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 조직 관계 변경 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 조직 관계 변경 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-002의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-related-fr:
+      - CMN-FR-002
+  /api/admin/roles:
+    get:
+      operationId: listRoles
+      summary: 역할 목록
+      x-related-requirements:
+      - REQ-003
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Role'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: roleCode
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: roleName
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: useYn
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-005
+    post:
+      operationId: createRole
+      summary: 역할 등록
+      x-related-requirements:
+      - REQ-003
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/Role'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpsertRequest'
+      x-business-rules:
+      - roleCode는 R01~R09 enum 중 하나여야 한다
+      - 동일 roleCode를 중복 등록할 수 없다
+      x-side-effects:
+      - role 레코드를 저장한다
+      - change_history에 신규 역할 목적과 부여 기준을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 역할 등록 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 역할 등록 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-003의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-005
+  /api/admin/roles/{roleCode}:
+    put:
+      operationId: updateRole
+      summary: 역할 수정
+      x-related-requirements:
+      - REQ-003
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/Role'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: roleCode
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/RoleCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleUpsertRequest'
+      x-business-rules:
+      - 역할코드는 수정할 수 없다
+      - roleName 변경 후에도 role.role_code는 유지된다
+      x-side-effects:
+      - role.role_name, purpose, grant_criteria, default_data_scope를 갱신한다
+      - change_history에 변경 전후 역할 정보를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 역할 수정 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 역할 수정 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-003의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-related-fr:
+      - CMN-FR-005
+  /api/admin/user-roles:
+    get:
+      operationId: searchUserRoleAssignments
+      summary: 사용자 역할 검색
+      x-related-requirements:
+      - REQ-004
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserRoleAssignment'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: userId
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: roleCode
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: grantType
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: status
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-006
+    post:
+      operationId: grantUserRole
+      summary: 사용자 역할 부여
+      x-related-requirements:
+      - REQ-004
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/UserRoleAssignment'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignmentRequest'
+      x-business-rules:
+      - 동일 사용자·역할의 ACTIVE 기간은 겹칠 수 없다
+      - approverUserId와 validFrom은 필수다
+      x-side-effects:
+      - user_role_assignment를 ACTIVE 상태로 저장한다
+      - change_history에 부여 승인자와 유효기간을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 부여 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 사용자 역할 부여 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-004의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-006
+  /api/admin/user-roles/{assignmentId}:
+    put:
+      operationId: updateUserRoleAssignment
+      summary: 사용자 역할 변경
+      x-related-requirements:
+      - REQ-004
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/UserRoleAssignment'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignmentRequest'
+      x-business-rules:
+      - REVOKED 역할은 변경할 수 없다
+      - 보직 기반 역할은 grantType을 MANUAL로 바꿀 수 없다
+      x-side-effects:
+      - user_role_assignment 유효기간과 승인자를 갱신한다
+      - change_history에 변경 전후 유효기간을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 변경 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 사용자 역할 변경 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-004의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-related-fr:
+      - CMN-FR-006
+    delete:
+      operationId: revokeUserRoleAssignment
+      summary: 사용자 역할 회수
+      x-related-requirements:
+      - REQ-004
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/UserRoleAssignment'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: assignmentId
+        in: path
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                changeReason:
+                  type: string
+      x-business-rules:
+      - 이미 REVOKED인 역할은 다시 회수할 수 없다
+      - 회수 사유는 필수다
+      x-side-effects:
+      - user_role_assignment.status를 REVOKED로 변경한다
+      - change_history에 회수 사유와 처리자를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 회수 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 사용자 역할 회수 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-004의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> REVOKED
+      x-related-fr:
+      - CMN-FR-006
+  /api/admin/menu-permissions:
+    get:
+      operationId: searchMenuPermissions
+      summary: 메뉴 권한 검색
+      x-related-requirements:
+      - REQ-005
+      - REQ-013
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/MenuPermission'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: targetType
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: targetId
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: menuId
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-007
+    put:
+      operationId: saveMenuPermissions
+      summary: 메뉴 권한 저장
+      x-related-requirements:
+      - REQ-005
+      - REQ-013
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/MenuPermission'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuPermissionSaveRequest'
+      x-business-rules:
+      - targetType은 ROLE, ORGANIZATION, USER 중 하나여야 한다
+      - 저장된 accessYn=N은 메뉴 미노출과 서버 403에 동일 적용된다
+      x-side-effects:
+      - menu_permission 대상별 권한 행을 upsert한다
+      - 권한 캐시 또는 메뉴 컨텍스트를 무효화한다
+      - change_history에 권한 변경 전후를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 권한 저장 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 메뉴 권한 저장 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-005의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-related-fr:
+      - CMN-FR-007
+  /api/admin/menus/tree:
+    get:
+      operationId: getMenuTree
+      summary: 메뉴 구조 조회
+      x-related-requirements:
+      - REQ-006
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Menu'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      x-related-fr:
+      - CMN-FR-013
+  /api/admin/menus/tree/reorder:
+    patch:
+      operationId: reorderMenuTree
+      summary: 메뉴 순서 재정렬
+      x-related-requirements:
+      - REQ-006
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Menu'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuReorderRequest'
+      x-business-rules:
+      - orderedMenuIds는 동일 parentMenuId의 하위 메뉴만 포함해야 한다
+      - 동일 계층 displayOrder는 중복될 수 없다
+      x-side-effects:
+      - menu.display_order를 요청 순서대로 갱신한다
+      - change_history에 재정렬 전후 menu_id 순서를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 순서 재정렬 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 메뉴 순서 재정렬 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-006의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-related-fr:
+      - CMN-FR-013
+  /api/admin/menus:
+    get:
+      operationId: searchMenus
+      summary: 메뉴 정보 검색
+      x-related-requirements:
+      - REQ-007
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Menu'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: menuName
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: screenId
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: url
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: businessCategory
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: useYn
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-014
+    post:
+      operationId: createMenu
+      summary: 메뉴 정보 등록
+      x-related-requirements:
+      - REQ-007
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/Menu'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuRequest'
+      x-business-rules:
+      - menuName과 url은 필수다
+      - screenId는 실행 화면 식별자로 중복 연결을 검토해야 한다
+      x-side-effects:
+      - menu 레코드를 저장한다
+      - change_history에 신규 메뉴 실행정보를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 정보 등록 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 메뉴 정보 등록 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-007의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-014
+  /api/admin/menus/{menuId}:
+    put:
+      operationId: updateMenu
+      summary: 메뉴 정보 수정
+      x-related-requirements:
+      - REQ-007
+      - REQ-014
+      - REQ-015
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/Menu'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: menuId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuRequest'
+      x-business-rules:
+      - 사용 중인 메뉴 삭제성 처리는 useYn=N 비활성화를 우선한다
+      - url은 /admin/... 라우트와 연결되어야 한다
+      x-side-effects:
+      - menu 실행정보와 use_yn을 갱신한다
+      - change_history에 메뉴 변경 전후를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 정보 수정 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 메뉴 정보 수정 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-007의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> INACTIVE
+      - INACTIVE -> ACTIVE
+      x-related-fr:
+      - CMN-FR-014
+  /api/admin/code-groups:
+    get:
+      operationId: searchCodeGroups
+      summary: 코드그룹 검색
+      x-related-requirements:
+      - REQ-008
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CodeGroup'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: groupId
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: groupName
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: managingDepartment
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: useYn
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-fr:
+      - CMN-FR-016
+    post:
+      operationId: createCodeGroup
+      summary: 코드그룹 등록
+      x-related-requirements:
+      - REQ-008
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CodeGroup'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeGroupRequest'
+      x-business-rules:
+      - groupId는 중복될 수 없다
+      - groupName과 managingDepartment는 필수다
+      x-side-effects:
+      - code_group 레코드를 저장한다
+      - change_history에 신규 코드그룹 정보를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 코드그룹 등록 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 코드그룹 등록 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-008의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-016
+  /api/admin/code-groups/{groupId}:
+    put:
+      operationId: updateCodeGroup
+      summary: 코드그룹 수정
+      x-related-requirements:
+      - REQ-008
+      - REQ-014
+      - REQ-015
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CodeGroup'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeGroupRequest'
+      x-business-rules:
+      - 사용 중인 코드그룹은 물리삭제보다 useYn=N으로 비활성화한다
+      - groupId는 수정할 수 없다
+      x-side-effects:
+      - code_group 명칭·설명·관리부서·use_yn을 갱신한다
+      - change_history에 코드그룹 변경 전후를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 코드그룹 수정 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 코드그룹 수정 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-008의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> INACTIVE
+      - INACTIVE -> ACTIVE
+      x-related-fr:
+      - CMN-FR-016
+  /api/admin/code-groups/{groupId}/codes:
+    get:
+      operationId: searchCommonCodes
+      summary: 상세코드 검색
+      x-related-requirements:
+      - REQ-009
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CommonCode'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: codeValue
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: codeName
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: parentCodeValue
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: useYn
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: size
+        in: query
+        schema:
+          type: integer
+        required: false
+      x-related-fr:
+      - CMN-FR-017
+    post:
+      operationId: createCommonCode
+      summary: 상세코드 등록
+      x-related-requirements:
+      - REQ-009
+      - REQ-014
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CommonCode'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommonCodeRequest'
+      x-business-rules:
+      - 동일 groupId 안에서 codeValue는 중복될 수 없다
+      - validFrom은 필수이며 validTo가 있으면 validFrom 이후여야 한다
+      x-side-effects:
+      - common_code 레코드를 저장한다
+      - change_history에 신규 상세코드와 추가속성을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 상세코드 등록 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 상세코드 등록 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-009의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - none -> ACTIVE
+      x-related-fr:
+      - CMN-FR-017
+  /api/admin/code-groups/{groupId}/codes/{codeValue}:
+    put:
+      operationId: updateCommonCode
+      summary: 상세코드 수정
+      x-related-requirements:
+      - REQ-009
+      - REQ-014
+      - REQ-015
+      responses:
+        '200':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/CommonCode'
+        '400':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: ApiResponse envelope
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: codeValue
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommonCodeRequest'
+      x-business-rules:
+      - 사용 중인 상세코드는 물리삭제보다 useYn=N으로 비활성화한다
+      - 상위코드는 같은 groupId 안의 codeValue만 참조한다
+      x-side-effects:
+      - common_code 코드명·상위코드·정렬순서·추가속성·유효기간·use_yn을 갱신한다
+      - change_history에 상세코드 변경 전후를 기록한다
+      x-required-tests:
+      - 'happy: 유효한 상세코드 수정 요청 -> 후속 조회에서 대상 필드 변경이 확인된다'
+      - 'auth: R01 교원 세션으로 상세코드 수정 요청 -> 403과 ApiError.code=FORBIDDEN을 반환한다'
+      - 'validation: changeReason 빈 값 -> fieldErrors.changeReason가 반환된다'
+      - 'business: 요구 REQ-009의 불변 규칙 위반 -> 대상 레코드 상태가 변경되지 않는다'
+      - 'side-effect: 성공 요청 -> change_history 행이 대상 entity_key로 생성된다'
+      x-state-transitions:
+      - ACTIVE -> INACTIVE
+      - INACTIVE -> ACTIVE
+      x-related-fr:
+      - CMN-FR-017
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: KNUESESSION
+  schemas:
+    ApiError:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    ApiResponse:
+      type: object
+      required:
+      - success
+      properties:
+        success:
+          type: boolean
+        data: {}
+        error:
+          $ref: '#/components/schemas/ApiError'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            size:
+              type: integer
+            totalElements:
+              type: integer
+            totalPages:
+              type: integer
+    UseYn:
+      type: string
+      enum:
+      - Y
+      - N
+    RoleCode:
+      type: string
+      enum:
+      - R01
+      - R02
+      - R03
+      - R04
+      - R05
+      - R06
+      - R07
+      - R08
+      - R09
+    EmploymentStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - RETIRED
+      - LEAVE
+    OrganizationType:
+      type: string
+      enum:
+      - UNIVERSITY
+      - GRADUATE_SCHOOL
+      - COLLEGE
+      - DEPARTMENT
+      - OFFICE
+    DefaultDataScope:
+      type: string
+      enum:
+      - SELF
+      - DEPARTMENT
+      - COLLEGE
+      - ALL
+    GrantType:
+      type: string
+      enum:
+      - POSITION_BASED
+      - MANUAL
+    AssignmentStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - REVOKED
+      - EXPIRED
+    PermissionTargetType:
+      type: string
+      enum:
+      - ROLE
+      - ORGANIZATION
+      - USER
+    SessionStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - EXPIRED
+      - LOGGED_OUT
+    LoginRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        password:
+          type: string
+    LoginUser:
+      type: object
+      properties:
+        userId:
+          type: string
+        roleCodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleCode'
+    UserSummary:
+      type: object
+      properties:
+        userId:
+          type: string
+        personId:
+          type: string
+        personName:
+          type: string
+        organizationName:
+          type: string
+        jobGrade:
+          type: string
+        employmentStatus:
+          $ref: '#/components/schemas/EmploymentStatus'
+        positionName:
+          type: string
+        retiredAt:
+          type: string
+          format: date
+        lastSyncedAt:
+          type: string
+          format: date-time
+        systemUseYn:
+          $ref: '#/components/schemas/UseYn'
+        roleCodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleCode'
+    UserAccessUpdateRequest:
+      type: object
+      properties:
+        systemUseYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    UserRolesUpdateRequest:
+      type: object
+      properties:
+        roleCodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleCode'
+        approverUserId:
+          type: string
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        changeReason:
+          type: string
+    Organization:
+      type: object
+      properties:
+        organizationCode:
+          type: string
+        organizationName:
+          type: string
+        organizationType:
+          $ref: '#/components/schemas/OrganizationType'
+        parentOrganizationCode:
+          type: string
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    OrganizationRelationRequest:
+      type: object
+      properties:
+        parentOrganizationCode:
+          type: string
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+        changeReason:
+          type: string
+    Role:
+      type: object
+      properties:
+        roleCode:
+          $ref: '#/components/schemas/RoleCode'
+        roleName:
+          type: string
+        purpose:
+          type: string
+        grantCriteria:
+          type: string
+        defaultDataScope:
+          $ref: '#/components/schemas/DefaultDataScope'
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    RoleUpsertRequest:
+      type: object
+      properties:
+        roleName:
+          type: string
+        purpose:
+          type: string
+        grantCriteria:
+          type: string
+        defaultDataScope:
+          $ref: '#/components/schemas/DefaultDataScope'
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    UserRoleAssignment:
+      type: object
+      properties:
+        assignmentId:
+          type: integer
+        userId:
+          type: string
+        roleCode:
+          $ref: '#/components/schemas/RoleCode'
+        grantType:
+          $ref: '#/components/schemas/GrantType'
+        approverUserId:
+          type: string
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/AssignmentStatus'
+    UserRoleAssignmentRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        roleCode:
+          $ref: '#/components/schemas/RoleCode'
+        grantType:
+          $ref: '#/components/schemas/GrantType'
+        approverUserId:
+          type: string
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        changeReason:
+          type: string
+    Menu:
+      type: object
+      properties:
+        menuId:
+          type: string
+        parentMenuId:
+          type: string
+        menuLevel:
+          type: integer
+        menuName:
+          type: string
+        screenId:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+        businessCategory:
+          type: string
+        description:
+          type: string
+        displayOrder:
+          type: integer
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    MenuRequest:
+      type: object
+      properties:
+        parentMenuId:
+          type: string
+        menuName:
+          type: string
+        screenId:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+        businessCategory:
+          type: string
+        description:
+          type: string
+        displayOrder:
+          type: integer
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    MenuReorderRequest:
+      type: object
+      properties:
+        parentMenuId:
+          type: string
+        orderedMenuIds:
+          type: array
+          items:
+            type: string
+        changeReason:
+          type: string
+    MenuPermission:
+      type: object
+      properties:
+        permissionId:
+          type: integer
+        targetType:
+          $ref: '#/components/schemas/PermissionTargetType'
+        targetId:
+          type: string
+        menuId:
+          type: string
+        accessYn:
+          $ref: '#/components/schemas/UseYn'
+    MenuPermissionSaveRequest:
+      type: object
+      properties:
+        targetType:
+          $ref: '#/components/schemas/PermissionTargetType'
+        targetId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              menuId:
+                type: string
+              accessYn:
+                $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    CodeGroup:
+      type: object
+      properties:
+        groupId:
+          type: string
+        groupName:
+          type: string
+        description:
+          type: string
+        managingDepartment:
+          type: string
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    CodeGroupRequest:
+      type: object
+      properties:
+        groupName:
+          type: string
+        description:
+          type: string
+        managingDepartment:
+          type: string
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    CommonCode:
+      type: object
+      properties:
+        groupId:
+          type: string
+        codeValue:
+          type: string
+        codeName:
+          type: string
+        parentCodeValue:
+          type: string
+        sortOrder:
+          type: integer
+        additionalAttributes:
+          type: object
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    CommonCodeRequest:
+      type: object
+      properties:
+        codeName:
+          type: string
+        parentCodeValue:
+          type: string
+        sortOrder:
+          type: integer
+        additionalAttributes:
+          type: object
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    AccountStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - DISABLED
+      - LOCKED
+x-uncovered-requirements:
+- canonical_id: REQ-010
+  status: batch-only
+  evidence: 필수 산출물 생성는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
+- canonical_id: REQ-011
+  status: data-constraint
+  evidence: KORUS 조회 전용 경계는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
+- canonical_id: REQ-012
+  status: non-functional
+  evidence: 1차 범위 제한는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
+- canonical_id: REQ-017
+  status: non-functional
+  evidence: 기술스택 고정는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
+- canonical_id: REQ-019
+  status: data-constraint
+  evidence: 최소 DB 도메인는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
+- canonical_id: REQ-022
+  status: out-of-scope
+  evidence: 후속 확장 경계는 REST operation 직접 매핑이 아니라 해당 설계/검증 산출물에서 추적한다
