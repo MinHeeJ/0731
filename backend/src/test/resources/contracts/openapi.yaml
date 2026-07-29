@@ -1,0 +1,1950 @@
+openapi: 3.0.3
+info:
+  title: test0731 시스템 관리 API
+  version: 0.1.0
+servers:
+- url: /
+security:
+- bearerAuth: []
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: 상태 확인
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-related-requirements:
+      - REQ-001
+  /api/admin/users:
+    get:
+      operationId: listUsers
+      summary: 사용자 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-001
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createUser
+      summary: 사용자 관리 등록
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - 사용자 조회와 내부 계정 시스템 사용 여부 및 로컬 관리 속성을 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - local_user_account row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 관리 저장 요청 -> local_user_account.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 관리 삭제 -> local_user_account row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_user_account 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/users/{id}:
+    get:
+      operationId: getUser
+      summary: 사용자 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-001
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateUser
+      summary: 사용자 관리 수정
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - 사용자 조회와 내부 계정 시스템 사용 여부 및 로컬 관리 속성을 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - local_user_account row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 관리 저장 요청 -> local_user_account.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 관리 삭제 -> local_user_account row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_user_account 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+    delete:
+      operationId: deleteUser
+      summary: 사용자 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - 참조 중인 사용자 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - local_user_account 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 관리 저장 요청 -> local_user_account.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 관리 삭제 -> local_user_account row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_user_account 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/organizations:
+    get:
+      operationId: listOrganizations
+      summary: 조직 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-002
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createOrganization
+      summary: 조직 관리 등록
+      x-related-requirements:
+      - REQ-002
+      x-business-rules:
+      - 조직 조회와 로컬 조직 표시·사용 여부 및 관리 속성을 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - local_organization_setting row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 조직 관리 저장 요청 -> local_organization_setting.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 조직 관리 삭제 -> local_organization_setting row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_organization_setting 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/organizations/{id}:
+    get:
+      operationId: getOrganization
+      summary: 조직 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-002
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateOrganization
+      summary: 조직 관리 수정
+      x-related-requirements:
+      - REQ-002
+      x-business-rules:
+      - 조직 조회와 로컬 조직 표시·사용 여부 및 관리 속성을 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - local_organization_setting row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 조직 관리 저장 요청 -> local_organization_setting.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 조직 관리 삭제 -> local_organization_setting row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_organization_setting 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+    delete:
+      operationId: deleteOrganization
+      summary: 조직 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-002
+      x-business-rules:
+      - 참조 중인 조직 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - local_organization_setting 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 조직 관리 저장 요청 -> local_organization_setting.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 조직 관리 삭제 -> local_organization_setting row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=local_organization_setting 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/roles:
+    get:
+      operationId: listRoles
+      summary: 역할 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-003
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createRole
+      summary: 역할 관리 등록
+      x-related-requirements:
+      - REQ-003
+      x-business-rules:
+      - 역할 코드·명칭·설명·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - role row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 역할 관리 저장 요청 -> role.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 역할 관리 삭제 -> role row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=role 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/roles/{id}:
+    get:
+      operationId: getRole
+      summary: 역할 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-003
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateRole
+      summary: 역할 관리 수정
+      x-related-requirements:
+      - REQ-003
+      x-business-rules:
+      - 역할 코드·명칭·설명·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - role row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 역할 관리 저장 요청 -> role.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 역할 관리 삭제 -> role row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=role 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Role'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+    delete:
+      operationId: deleteRole
+      summary: 역할 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-003
+      x-business-rules:
+      - 참조 중인 역할 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - role 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 역할 관리 저장 요청 -> role.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 역할 관리 삭제 -> role row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=role 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/user-roles:
+    get:
+      operationId: listUserRoleAssignments
+      summary: 사용자 역할 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-004
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createUserRoleAssignment
+      summary: 사용자 역할 관리 등록
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - 사용자별 역할 부여·회수·유효기간을 조회하고 관리한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - user_role_assignment row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 관리 저장 요청 -> user_role_assignment.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 역할 관리 삭제 -> user_role_assignment row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=user_role_assignment 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignment'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/user-roles/{id}:
+    get:
+      operationId: getUserRoleAssignment
+      summary: 사용자 역할 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-004
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateUserRoleAssignment
+      summary: 사용자 역할 관리 수정
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - 사용자별 역할 부여·회수·유효기간을 조회하고 관리한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - user_role_assignment row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 관리 저장 요청 -> user_role_assignment.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 역할 관리 삭제 -> user_role_assignment row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=user_role_assignment 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignment'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ACTIVE -> REVOKED
+      - ACTIVE -> EXPIRED
+    delete:
+      operationId: deleteUserRoleAssignment
+      summary: 사용자 역할 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - 참조 중인 사용자 역할 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - user_role_assignment 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 사용자 역할 관리 저장 요청 -> user_role_assignment.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 사용자 역할 관리 삭제 -> user_role_assignment row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=user_role_assignment 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menu-permissions:
+    get:
+      operationId: listMenuPermissions
+      summary: 메뉴 권한 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-005
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createMenuPermission
+      summary: 메뉴 권한 관리 등록
+      x-related-requirements:
+      - REQ-005
+      x-business-rules:
+      - 역할별 메뉴 접근 권한과 동작 권한을 조회하고 변경한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - menu_permission row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 권한 관리 저장 요청 -> menu_permission.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 권한 관리 삭제 -> menu_permission row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu_permission 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuPermission'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menu-permissions/{id}:
+    get:
+      operationId: getMenuPermission
+      summary: 메뉴 권한 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-005
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateMenuPermission
+      summary: 메뉴 권한 관리 수정
+      x-related-requirements:
+      - REQ-005
+      x-business-rules:
+      - 역할별 메뉴 접근 권한과 동작 권한을 조회하고 변경한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - menu_permission row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 권한 관리 저장 요청 -> menu_permission.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 권한 관리 삭제 -> menu_permission row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu_permission 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuPermission'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      operationId: deleteMenuPermission
+      summary: 메뉴 권한 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-005
+      x-business-rules:
+      - 참조 중인 메뉴 권한 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - menu_permission 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 권한 관리 저장 요청 -> menu_permission.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 권한 관리 삭제 -> menu_permission row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu_permission 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menu-structures:
+    get:
+      operationId: listMenuStructures
+      summary: 메뉴 구조 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-006
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createMenuStructure
+      summary: 메뉴 구조 관리 등록
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - 메뉴 계층 구조, 정렬 순서, 상위·하위 관계를 조회하고 변경한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - menu row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 구조 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 구조 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuStructure'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menu-structures/{id}:
+    get:
+      operationId: getMenuStructure
+      summary: 메뉴 구조 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-006
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateMenuStructure
+      summary: 메뉴 구조 관리 수정
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - 메뉴 계층 구조, 정렬 순서, 상위·하위 관계를 조회하고 변경한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - menu row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 구조 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 구조 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuStructure'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      operationId: deleteMenuStructure
+      summary: 메뉴 구조 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - 참조 중인 메뉴 구조 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - menu 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 구조 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 구조 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus:
+    get:
+      operationId: listMenus
+      summary: 메뉴 정보 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-007
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createMenu
+      summary: 메뉴 정보 관리 등록
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - 메뉴명, route, 표시 여부, 설명 등 메뉴 메타정보를 조회하고 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - menu row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 정보 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 정보 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Menu'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus/{id}:
+    get:
+      operationId: getMenu
+      summary: 메뉴 정보 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-007
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateMenu
+      summary: 메뉴 정보 관리 수정
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - 메뉴명, route, 표시 여부, 설명 등 메뉴 메타정보를 조회하고 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - menu row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 정보 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 정보 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Menu'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - VISIBLE -> HIDDEN
+      - HIDDEN -> VISIBLE
+    delete:
+      operationId: deleteMenu
+      summary: 메뉴 정보 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - 참조 중인 메뉴 정보 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - menu 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 메뉴 정보 관리 저장 요청 -> menu.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 메뉴 정보 관리 삭제 -> menu row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=menu 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups:
+    get:
+      operationId: listCodeGroups
+      summary: 코드그룹 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-008
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createCodeGroup
+      summary: 코드그룹 관리 등록
+      x-related-requirements:
+      - REQ-008
+      x-business-rules:
+      - 공통코드 그룹 코드·명칭·설명·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - code_group row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 코드그룹 관리 저장 요청 -> code_group.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 코드그룹 관리 삭제 -> code_group row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=code_group 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeGroup'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups/{id}:
+    get:
+      operationId: getCodeGroup
+      summary: 코드그룹 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-008
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateCodeGroup
+      summary: 코드그룹 관리 수정
+      x-related-requirements:
+      - REQ-008
+      x-business-rules:
+      - 공통코드 그룹 코드·명칭·설명·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - code_group row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 코드그룹 관리 저장 요청 -> code_group.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 코드그룹 관리 삭제 -> code_group row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=code_group 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeGroup'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+    delete:
+      operationId: deleteCodeGroup
+      summary: 코드그룹 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-008
+      x-business-rules:
+      - 참조 중인 코드그룹 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - code_group 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 코드그룹 관리 저장 요청 -> code_group.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 코드그룹 관리 삭제 -> code_group row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=code_group 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/detail-codes:
+    get:
+      operationId: listDetailCodes
+      summary: 상세코드 관리 목록
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/KeywordParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      x-related-requirements:
+      - REQ-009
+      responses:
+        '200':
+          description: 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 필터 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createDetailCode
+      summary: 상세코드 관리 등록
+      x-related-requirements:
+      - REQ-009
+      x-business-rules:
+      - 코드그룹에 속한 상세코드 코드값·명칭·정렬·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 등록할 수 있다
+      x-side-effects:
+      - detail_code row를 생성한다
+      - change_history에 등록 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 상세코드 관리 저장 요청 -> detail_code.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 상세코드 관리 삭제 -> detail_code row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=detail_code 행이 생성된다'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetailCode'
+      responses:
+        '201':
+          description: 등록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/detail-codes/{id}:
+    get:
+      operationId: getDetailCode
+      summary: 상세코드 관리 상세
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-009
+      responses:
+        '200':
+          description: 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '404':
+          description: 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: updateDetailCode
+      summary: 상세코드 관리 수정
+      x-related-requirements:
+      - REQ-009
+      x-business-rules:
+      - 코드그룹에 속한 상세코드 코드값·명칭·정렬·사용 여부를 검색하고 등록·수정·삭제한다.
+      - 관리자 권한만 수정할 수 있다
+      x-side-effects:
+      - detail_code row를 갱신한다
+      - change_history에 수정 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 상세코드 관리 저장 요청 -> detail_code.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 상세코드 관리 삭제 -> detail_code row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=detail_code 행이 생성된다'
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetailCode'
+      responses:
+        '200':
+          description: 수정
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+    delete:
+      operationId: deleteDetailCode
+      summary: 상세코드 관리 삭제
+      parameters:
+      - $ref: '#/components/parameters/IdParam'
+      x-related-requirements:
+      - REQ-009
+      x-business-rules:
+      - 참조 중인 상세코드 관리는 삭제할 수 없다
+      - 관리자 권한만 삭제할 수 있다
+      x-side-effects:
+      - detail_code 삭제 상태를 저장한다
+      - change_history에 삭제 이력을 기록한다
+      x-required-tests:
+      - 'happy: 유효한 상세코드 관리 저장 요청 -> detail_code.name이 후속 조회에서 변경값으로 읽힌다'
+      - 'auth: SYSTEM_VIEWER 변경 요청 -> 403 ApiResponse<ApiError>가 반환된다'
+      - 'validation: name 공백 -> errors[0].field=name이 반환된다'
+      - 'business: 참조 중인 상세코드 관리 삭제 -> detail_code row 상태가 변경 전으로 유지된다'
+      - 'side-effect: 성공 변경 -> change_history.target_table=detail_code 행이 생성된다'
+      responses:
+        '200':
+          description: 삭제
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 업무 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    KeywordParam:
+      name: keyword
+      in: query
+      schema:
+        type: string
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data: {}
+        error:
+          $ref: '#/components/schemas/ApiError'
+      required:
+      - success
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              reason:
+                type: string
+      required:
+      - code
+      - message
+    UseStatus:
+      type: string
+      enum:
+      - ENABLED
+      - DISABLED
+    EffectiveStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - EXPIRED
+      - REVOKED
+    PermissionAction:
+      type: string
+      enum:
+      - READ
+      - CREATE
+      - UPDATE
+      - DELETE
+    DisplayStatus:
+      type: string
+      enum:
+      - VISIBLE
+      - HIDDEN
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        useStatus:
+          $ref: '#/components/schemas/UseStatus'
+      required:
+      - name
+      - changeReason
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        useStatus:
+          $ref: '#/components/schemas/UseStatus'
+      required:
+      - name
+      - changeReason
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        useStatus:
+          $ref: '#/components/schemas/UseStatus'
+      required:
+      - name
+      - changeReason
+    UserRoleAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        effectiveStatus:
+          $ref: '#/components/schemas/EffectiveStatus'
+      required:
+      - name
+      - changeReason
+    MenuPermission:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        permissionAction:
+          $ref: '#/components/schemas/PermissionAction'
+      required:
+      - name
+      - changeReason
+    MenuStructure:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+      required:
+      - name
+      - changeReason
+    Menu:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        displayStatus:
+          $ref: '#/components/schemas/DisplayStatus'
+      required:
+      - name
+      - changeReason
+    CodeGroup:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        useStatus:
+          $ref: '#/components/schemas/UseStatus'
+      required:
+      - name
+      - changeReason
+    DetailCode:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        changeReason:
+          type: string
+        useStatus:
+          $ref: '#/components/schemas/UseStatus'
+      required:
+      - name
+      - changeReason
+x-uncovered-requirements: []

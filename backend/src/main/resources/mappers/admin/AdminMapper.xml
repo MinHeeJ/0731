@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.test0731.admin.AdminMapper">
+  <select id="list" resultType="map">
+    SELECT ${resource.idColumn} AS id, name,
+    <choose>
+      <when test="resource.statusColumn != null">${resource.statusColumn} AS status,</when>
+      <otherwise>NULL AS status,</otherwise>
+    </choose>
+    updated_at AS updatedAt
+    FROM ${resource.tableName}
+    WHERE deleted_at IS NULL
+    <if test="keyword != null and keyword != ''">
+      AND name ILIKE CONCAT('%', #{keyword}, '%')
+    </if>
+    ORDER BY name ASC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+  <select id="find" resultType="map">
+    SELECT ${resource.idColumn} AS id, name,
+    <choose>
+      <when test="resource.statusColumn != null">${resource.statusColumn} AS status,</when>
+      <otherwise>NULL AS status,</otherwise>
+    </choose>
+    created_at AS createdAt, updated_at AS updatedAt, deleted_at AS deletedAt
+    FROM ${resource.tableName}
+    WHERE ${resource.idColumn} = #{id}
+  </select>
+  <insert id="insert">
+    INSERT INTO ${resource.tableName} (${resource.idColumn}, name <if test="resource.statusColumn != null">, ${resource.statusColumn}</if>)
+    VALUES (#{id}, #{name} <if test="resource.statusColumn != null">, #{status}</if>)
+  </insert>
+  <update id="update">
+    UPDATE ${resource.tableName}
+    SET name = #{name}, updated_at = NOW()
+    <if test="resource.statusColumn != null">, ${resource.statusColumn} = #{status}</if>
+    WHERE ${resource.idColumn} = #{id} AND deleted_at IS NULL
+  </update>
+  <update id="softDelete">
+    UPDATE ${resource.tableName} SET deleted_at = NOW(), updated_at = NOW() WHERE ${resource.idColumn} = #{id} AND deleted_at IS NULL
+  </update>
+  <select id="countReferences" resultType="int">
+    <choose>
+      <when test="resource.tableName == 'role'">
+        SELECT COUNT(*) FROM user_role_assignment WHERE role_id = #{id} AND deleted_at IS NULL
+      </when>
+      <when test="resource.tableName == 'local_user_account'">
+        SELECT COUNT(*) FROM user_role_assignment WHERE local_user_account_id = #{id} AND deleted_at IS NULL
+      </when>
+      <when test="resource.tableName == 'menu'">
+        SELECT (SELECT COUNT(*) FROM menu_permission WHERE menu_id = #{id} AND deleted_at IS NULL) + (SELECT COUNT(*) FROM menu WHERE parent_menu_id = #{id} AND deleted_at IS NULL)
+      </when>
+      <when test="resource.tableName == 'code_group'">
+        SELECT COUNT(*) FROM detail_code WHERE code_group_id = #{id} AND deleted_at IS NULL
+      </when>
+      <otherwise>SELECT 0</otherwise>
+    </choose>
+  </select>
+  <insert id="insertHistory">
+    INSERT INTO change_history (change_history_id, target_table, target_id, before_value, after_value, changed_by, change_reason)
+    VALUES (gen_random_uuid(), #{targetTable}, #{targetId}, CAST(#{beforeValue,jdbcType=VARCHAR} AS jsonb), CAST(#{afterValue,jdbcType=VARCHAR} AS jsonb), #{changedBy}, #{changeReason})
+  </insert>
+  <insert id="insertTransactionConstraint">
+    INSERT INTO mapping_transaction_lock_constraints (
+      mapping_transaction_lock_constraint_id,
+      target_table,
+      target_id,
+      operation_type,
+      mapper_technology,
+      transaction_status,
+      korus_snapshot_read_only,
+      locked_by,
+      locked_at,
+      released_at
+    ) VALUES (
+      gen_random_uuid(),
+      #{targetTable},
+      #{targetId},
+      #{operationType},
+      'MYBATIS_BLOCKING',
+      'COMMITTED',
+      TRUE,
+      #{lockedBy},
+      NOW(),
+      NOW()
+    )
+  </insert>
+</mapper>
