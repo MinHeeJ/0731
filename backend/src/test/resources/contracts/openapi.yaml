@@ -1,0 +1,1959 @@
+openapi: 3.0.3
+info:
+  title: CMS-1344 test0731 API
+  version: 0.2.0
+servers:
+- url: /
+tags:
+- name: auth
+  description: 인증과 현재 사용자
+- name: user
+  description: 사용자 관리
+- name: organization
+  description: 조직 관리
+- name: role
+  description: 역할과 사용자 역할 관리
+- name: menu
+  description: 메뉴와 권한 관리
+- name: code
+  description: 공통코드 관리
+paths:
+  /api/health:
+    get:
+      tags:
+      - auth
+      operationId: getHealth
+      summary: 상태 점검
+      x-related-requirements:
+      - REQ-001
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '503':
+          description: DB 또는 application readiness 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/login:
+    post:
+      tags:
+      - auth
+      operationId: login
+      summary: 관리자 로그인
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - loginId와 password는 비어 있을 수 없다
+      - 시드 관리자 계정 admin/admin은 R09 시스템관리자 역할을 가져야 한다
+      - system_use_yn이 Y인 내부 계정만 인증 세션을 받을 수 있다
+      x-side-effects:
+      - session 레코드를 AUTHENTICATED 상태로 저장한다
+      - HttpOnly SameSite=Lax session cookie를 발급한다
+      - 로그인 성공 시각을 internal_user.last_login_at에 기록한다
+      x-state-transitions:
+      - ANONYMOUS -> AUTHENTICATED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      x-required-tests:
+      - 'happy: loginId=admin,password=admin 요청 -> session.status=AUTHENTICATED 행이 저장되고 /api/auth/me 후속 조회가 user.roleCodes에
+        R09를 반환한다'
+      - 'auth: system_use_yn=N 내부 계정으로 로그인 시도 -> HTTP 403을 반환하고 session 행이 생성되지 않는다'
+      - 'validation: password 빈 문자열 요청 -> fieldErrors.password 항목과 HTTP 400을 반환한다'
+      - 'business: admin/admin 시드 계정이 R09 역할을 갖지 않는 상태 -> 인증을 차단하고 internal_user.last_login_at 값이 변경되지 않는다'
+      - 'side-effect: 로그인 성공 후 -> session.issued_at과 internal_user.last_login_at이 존재하고 change_history가 아닌 session 테이블에서 읽힌다'
+  /api/auth/logout:
+    post:
+      tags:
+      - auth
+      operationId: logout
+      summary: 세션 로그아웃
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - 인증된 session cookie가 없으면 로그아웃 처리하지 않는다
+      - 이미 만료된 session은 중복 만료 이력을 만들지 않는다
+      - 현재 사용자 자신의 session만 로그아웃할 수 있다
+      x-side-effects:
+      - session.invalidated_at을 현재 시각으로 저장한다
+      - session.status를 EXPIRED로 갱신한다
+      - session cookie 만료 헤더를 반환한다
+      x-state-transitions:
+      - AUTHENTICATED -> EXPIRED
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: 인증 session cookie로 로그아웃 요청 -> session.status=EXPIRED로 저장되고 /api/auth/me 후속 조회가 HTTP 401을 반환한다'
+      - 'auth: session cookie 없이 로그아웃 요청 -> HTTP 401을 반환하고 session.invalidated_at이 새로 기록되지 않는다'
+      - 'validation: 변조된 session cookie 요청 -> ApiResponse.error.code=UNAUTHORIZED와 HTTP 401을 반환한다'
+      - 'business: 이미 EXPIRED인 session으로 재요청 -> 중복 만료 처리를 막고 session.invalidated_at 기존 값이 유지된다'
+      - 'side-effect: 로그아웃 성공 후 -> session.invalidated_at이 존재하고 Set-Cookie 만료 헤더가 응답에 포함된다'
+      x-roles:
+      - authenticated
+  /api/auth/me:
+    get:
+      tags:
+      - auth
+      operationId: getCurrentUser
+      summary: 현재 사용자
+      x-related-requirements:
+      - REQ-001
+      - REQ-005
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/users:
+    get:
+      tags:
+      - user
+      operationId: listUsers
+      summary: 사용자 검색
+      x-related-requirements:
+      - REQ-001
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: employeeNo
+        in: query
+        schema:
+          type: string
+        description: 교번 필터
+      - name: name
+        in: query
+        schema:
+          type: string
+        description: 성명 필터
+      - name: departmentCode
+        in: query
+        schema:
+          type: string
+        description: 소속 필터
+      - name: rankName
+        in: query
+        schema:
+          type: string
+        description: 직급 필터
+      - name: employmentStatus
+        in: query
+        schema:
+          type: string
+        description: 재직상태 필터
+      - name: roleCode
+        in: query
+        schema:
+          $ref: '#/components/schemas/RoleCode'
+        description: 역할 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/users/{userId}:
+    get:
+      tags:
+      - user
+      operationId: getUser
+      summary: 사용자 상세
+      x-related-requirements:
+      - REQ-001
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/users/{userId}/usage:
+    patch:
+      tags:
+      - user
+      operationId: updateUserUsage
+      summary: 사용여부 변경
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - KORUS 원천 인사 필드는 변경하지 않는다
+      - R09 시스템관리자만 내부 계정의 system_use_yn을 변경할 수 있다
+      - useYn은 Y 또는 N만 허용한다
+      - 변경 사유가 없으면 사용여부 변경을 저장하지 않는다
+      x-side-effects:
+      - internal_user.system_use_yn을 저장한다
+      - internal_user.updated_at과 updated_by를 갱신한다
+      - change_history에 사용자 사용여부 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - ACTIVE -> INACTIVE
+      - INACTIVE -> ACTIVE
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserUsageRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 useYn=N,changeReason=휴직 요청 -> internal_user.system_use_yn=N으로 저장되고 getUser 후속 조회가 N을 반환한다'
+      - 'auth: R01 사용자가 사용여부 변경 요청 -> HTTP 403을 반환하고 internal_user.system_use_yn 기존 값이 유지된다'
+      - 'validation: useYn=X 요청 -> fieldErrors.useYn 항목과 HTTP 400을 반환한다'
+      - 'business: changeReason 누락 요청 -> 변경 사유 규칙으로 차단되고 internal_user.updated_at이 변경되지 않는다'
+      - 'side-effect: 사용여부 변경 성공 후 -> change_history.entity_name=internal_user 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/users/{userId}/roles:
+    put:
+      tags:
+      - user
+      operationId: replaceUserRoles
+      summary: 사용자 업무 역할 저장
+      x-related-requirements:
+      - REQ-001
+      - REQ-004
+      x-business-rules:
+      - KORUS 원천 인사 필드는 변경하지 않는다
+      - roleCode는 R01부터 R09까지만 허용한다
+      - 역할별 validFrom은 validTo보다 늦을 수 없다
+      - R09 시스템관리자만 사용자 업무 역할을 변경할 수 있다
+      x-side-effects:
+      - 기존 user_role 활성 행을 요청 roles와 일치하도록 갱신한다
+      - 새 수동 역할은 user_role에 ACTIVE 상태로 저장한다
+      - change_history에 사용자 역할 before_value와 after_value를 기록한다
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceUserRolesRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 roles=[R03]와 changeReason 요청 -> user_role 활성 행이 요청 역할과 일치하고 getUser 후속 조회가 R03을 반환한다'
+      - 'auth: R02 사용자가 업무 역할 저장 요청 -> HTTP 403을 반환하고 user_role 활성 행 집합이 유지된다'
+      - 'validation: roleCode=R10 요청 -> fieldErrors.roles[0].roleCode 항목과 HTTP 400을 반환한다'
+      - 'business: validFrom이 validTo보다 늦은 역할 요청 -> 기간 규칙으로 차단되고 user_role.valid_from 값이 유지된다'
+      - 'side-effect: 업무 역할 저장 성공 후 -> change_history.entity_name=user_role 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/organizations:
+    get:
+      tags:
+      - organization
+      operationId: listOrganizations
+      summary: 조직 검색
+      x-related-requirements:
+      - REQ-002
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: orgCode
+        in: query
+        schema:
+          type: string
+        description: 조직코드 필터
+      - name: orgName
+        in: query
+        schema:
+          type: string
+        description: 조직명 필터
+      - name: orgType
+        in: query
+        schema:
+          type: string
+        description: 조직유형 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/organizations/tree:
+    get:
+      tags:
+      - organization
+      operationId: getOrganizationTree
+      summary: 조직 계층
+      x-related-requirements:
+      - REQ-002
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/organizations/{orgCode}/relations:
+    put:
+      tags:
+      - organization
+      operationId: upsertOrganizationRelation
+      summary: 조직 관계 기간 저장
+      x-related-requirements:
+      - REQ-002
+      x-business-rules:
+      - orgCode 기준 조직이 존재해야 한다
+      - parentOrgCode는 자기 자신의 orgCode와 같을 수 없다
+      - effectiveStartDate는 effectiveEndDate보다 늦을 수 없다
+      - 동일 적용기간에 활성 상위조직이 둘 이상일 수 없다
+      - R09 시스템관리자만 조직 관계를 등록·변경할 수 있다
+      x-side-effects:
+      - organization_relation_history에 상위조직 관계와 적용기간을 저장한다
+      - 이전 관계가 변경되면 종료일을 보존한 새 이력 행을 만든다
+      - change_history에 조직 관계 before_value와 after_value를 기록한다
+      parameters:
+      - $ref: '#/components/parameters/OrgCode'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationRelationRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 parentOrgCode와 effectiveStartDate 요청 -> organization_relation_history 행이 저장되고 getOrganizationTree 후속
+        조회가 새 parentOrgCode를 반환한다'
+      - 'auth: R03 사용자가 조직 관계 저장 요청 -> HTTP 403을 반환하고 organization_relation_history 행 수가 유지된다'
+      - 'validation: effectiveStartDate가 effectiveEndDate보다 늦은 요청 -> fieldErrors.effectiveStartDate 항목과 HTTP 400을 반환한다'
+      - 'business: parentOrgCode가 orgCode와 같은 요청 -> 자기 자신 상위조직 금지 규칙으로 차단되고 활성 parent_org_code가 유지된다'
+      - 'side-effect: 조직 관계 저장 성공 후 -> change_history.entity_name=organization_relation_history 행에 before_value와 after_value가
+        존재한다'
+      x-roles:
+      - authenticated
+  /api/roles:
+    get:
+      tags:
+      - role
+      operationId: listRoles
+      summary: 역할 목록
+      x-related-requirements:
+      - REQ-003
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: roleCode
+        in: query
+        schema:
+          $ref: '#/components/schemas/RoleCode'
+        description: 역할코드 필터
+      - name: roleName
+        in: query
+        schema:
+          type: string
+        description: 역할명 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    put:
+      tags:
+      - role
+      operationId: upsertRolePolicy
+      summary: 역할 정책 저장
+      x-related-requirements:
+      - REQ-003
+      x-business-rules:
+      - roleCode는 R01부터 R09까지만 허용한다
+      - 기존 roleCode 값은 변경할 수 없다
+      - 역할 목적과 부여 기준은 비어 있을 수 없다
+      - R09 시스템관리자만 역할 정책을 등록·수정할 수 있다
+      x-side-effects:
+      - role.purpose, assignment_criteria, default_data_scope를 저장한다
+      - role.updated_at과 updated_by를 갱신한다
+      - change_history에 역할 정책 before_value와 after_value를 기록한다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RolePolicyRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 R04 purpose와 assignmentCriteria 저장 -> role.purpose가 저장되고 listRoles 후속 조회가 변경 값을 반환한다'
+      - 'auth: R04 사용자가 역할 정책 저장 요청 -> HTTP 403을 반환하고 role.updated_at이 변경되지 않는다'
+      - 'validation: purpose 빈 문자열 요청 -> fieldErrors.purpose 항목과 HTTP 400을 반환한다'
+      - 'business: 기존 roleCode를 R04에서 R10으로 바꾸는 요청 -> role_code 불변 규칙으로 차단되고 role.role_code가 R04로 유지된다'
+      - 'side-effect: 역할 정책 저장 성공 후 -> change_history.entity_name=role 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/user-roles:
+    get:
+      tags:
+      - role
+      operationId: listUserRoles
+      summary: 사용자 역할 조회
+      x-related-requirements:
+      - REQ-004
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: userId
+        in: query
+        schema:
+          type: string
+        description: 사용자 ID 필터
+      - name: roleCode
+        in: query
+        schema:
+          $ref: '#/components/schemas/RoleCode'
+        description: 역할코드 필터
+      - name: validOn
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 기준일 필터
+      - name: assignmentType
+        in: query
+        schema:
+          $ref: '#/components/schemas/AssignmentType'
+        description: 부여 유형 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    post:
+      tags:
+      - role
+      operationId: assignUserRole
+      summary: 사용자 역할 부여
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - userId와 roleCode는 존재하는 사용자와 역할이어야 한다
+      - roleCode는 R01부터 R09까지만 허용한다
+      - validFrom은 validTo보다 늦을 수 없다
+      - 승인자 approvedBy는 비어 있을 수 없다
+      - 동일 사용자·역할·유효기간이 중복될 수 없다
+      - 보직 기반 역할과 수동 역할의 assignmentType을 반드시 구분한다
+      x-side-effects:
+      - user_role 행을 ACTIVE 상태로 저장한다
+      - 승인자와 유효기간을 user_role에 기록한다
+      - change_history에 역할 부여 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - none -> ACTIVE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRoleAssignmentRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 userId,roleCode=R05,approvedBy,validFrom 요청 -> user_role.status=ACTIVE 행이 생성되고 listUserRoles 후속 조회가 assignmentId를
+        반환한다'
+      - 'auth: R05 사용자가 역할 부여 요청 -> HTTP 403을 반환하고 user_role 행 수가 유지된다'
+      - 'validation: approvedBy 누락 요청 -> fieldErrors.approvedBy 항목과 HTTP 400을 반환한다'
+      - 'business: 동일 사용자·역할·유효기간 중복 요청 -> 중복 부여 규칙으로 차단되고 기존 user_role.status가 ACTIVE로 유지된다'
+      - 'side-effect: 역할 부여 성공 후 -> change_history.entity_name=user_role 행에 operation_type=ASSIGN이 존재한다'
+      x-roles:
+      - authenticated
+  /api/user-roles/{assignmentId}:
+    delete:
+      tags:
+      - role
+      operationId: revokeUserRole
+      summary: 사용자 역할 회수
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - assignmentId 기준 활성 user_role이 존재해야 한다
+      - 회수 사유가 없으면 역할을 회수할 수 없다
+      - R09 시스템관리자만 사용자 역할을 회수할 수 있다
+      - 보직 기반 역할 회수 시 assignmentType을 이력에 보존한다
+      x-side-effects:
+      - user_role.status를 REVOKED로 갱신한다
+      - revoked_at, revoked_by, change_reason을 기록한다
+      - change_history에 역할 회수 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - ACTIVE -> REVOKED
+      parameters:
+      - $ref: '#/components/parameters/AssignmentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 활성 assignmentId와 changeReason 요청 -> user_role.status=REVOKED로 저장되고 listUserRoles 후속 조회가 REVOKED를 반환한다'
+      - 'auth: R06 사용자가 역할 회수 요청 -> HTTP 403을 반환하고 user_role.status가 ACTIVE로 유지된다'
+      - 'validation: changeReason 빈 문자열 요청 -> fieldErrors.changeReason 항목과 HTTP 400을 반환한다'
+      - 'business: 존재하지 않거나 비활성 assignmentId 요청 -> 활성 user_role 존재 규칙으로 차단되고 user_role.revoked_at 값이 새로 생기지 않는다'
+      - 'side-effect: 역할 회수 성공 후 -> change_history.entity_name=user_role 행에 operation_type=REVOKE가 존재한다'
+      x-roles:
+      - authenticated
+  /api/menu-permissions/matrix:
+    get:
+      tags:
+      - menu
+      operationId: getMenuPermissionMatrix
+      summary: 메뉴 권한 matrix
+      x-related-requirements:
+      - REQ-005
+      parameters:
+      - name: targetType
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/PermissionTargetType'
+        description: 권한 대상 유형
+      - name: targetId
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 권한 대상 ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    put:
+      tags:
+      - menu
+      operationId: saveMenuPermissionMatrix
+      summary: 메뉴 권한 저장
+      x-related-requirements:
+      - REQ-005
+      x-business-rules:
+      - targetType은 ROLE, ORGANIZATION, USER 중 하나여야 한다
+      - targetId 기준 대상이 존재해야 한다
+      - menuId 기준 메뉴가 존재해야 한다
+      - 접근 허용값은 화면 미노출과 서버 접근통제에 동일 적용되어야 한다
+      - R09 시스템관리자만 메뉴 권한 matrix를 저장할 수 있다
+      x-side-effects:
+      - menu_permission target별 접근 허용값을 upsert한다
+      - backend authorization guard가 사용할 권한 source를 갱신한다
+      - change_history에 메뉴 권한 before_value와 after_value를 기록한다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuPermissionMatrixRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 ROLE R02 menuId 접근 허용값 저장 -> menu_permission.access_allowed_yn이 저장되고 getMenuPermissionMatrix 후속 조회가 같은
+        값을 반환한다'
+      - 'auth: R02 사용자가 메뉴 권한 matrix 저장 요청 -> HTTP 403을 반환하고 menu_permission 행이 변경되지 않는다'
+      - 'validation: targetType=TEAM 요청 -> fieldErrors.targetType 항목과 HTTP 400을 반환한다'
+      - 'business: 존재하지 않는 menuId 권한 요청 -> 메뉴 존재 규칙으로 차단되고 menu_permission 기존 값이 유지된다'
+      - 'side-effect: 메뉴 권한 저장 성공 후 -> change_history.entity_name=menu_permission 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/menus/tree:
+    get:
+      tags:
+      - menu
+      operationId: getMenuTree
+      summary: 메뉴 계층
+      x-related-requirements:
+      - REQ-006
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+  /api/menus/{menuId}/move:
+    patch:
+      tags:
+      - menu
+      operationId: moveMenuNode
+      summary: 메뉴 부모 변경
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - menuId 기준 메뉴가 존재해야 한다
+      - parentMenuId는 자기 자신 또는 자기 하위 메뉴일 수 없다
+      - 메뉴 level은 대메뉴·중메뉴·소메뉴 3단계를 초과할 수 없다
+      - R09 시스템관리자만 메뉴 부모를 변경할 수 있다
+      x-side-effects:
+      - menu.parent_menu_id와 menu_level을 저장한다
+      - 이동한 메뉴의 display_order를 새 형제 목록에 맞게 갱신한다
+      - change_history에 메뉴 구조 before_value와 after_value를 기록한다
+      parameters:
+      - $ref: '#/components/parameters/MenuId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuMoveRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 parentMenuId와 displayOrder 요청 -> menu.parent_menu_id가 저장되고 getMenuTree 후속 조회가 새 부모 아래 menuId를 반환한다'
+      - 'auth: R03 사용자가 메뉴 부모 변경 요청 -> HTTP 403을 반환하고 menu.parent_menu_id 기존 값이 유지된다'
+      - 'validation: displayOrder=0 요청 -> fieldErrors.displayOrder 항목과 HTTP 400을 반환한다'
+      - 'business: parentMenuId가 자기 자신 또는 하위 메뉴인 요청 -> 순환 부모 금지 규칙으로 차단되고 menu.parent_menu_id가 유지된다'
+      - 'side-effect: 메뉴 부모 변경 성공 후 -> change_history.entity_name=menu 행에 operation_type=MOVE가 존재한다'
+      x-roles:
+      - authenticated
+  /api/menus/reorder:
+    patch:
+      tags:
+      - menu
+      operationId: reorderMenuSiblings
+      summary: 메뉴 순서 재정렬
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - 재정렬 대상 메뉴는 모두 동일 parent_menu_id를 가져야 한다
+      - displayOrder는 동일 계층 안에서 중복될 수 없다
+      - 누락된 sibling이 있으면 순서를 저장하지 않는다
+      - R09 시스템관리자만 메뉴 표시순서를 재정렬할 수 있다
+      x-side-effects:
+      - menu.display_order를 sibling 순서대로 저장한다
+      - navigation cache가 있으면 새 표시순서로 무효화한다
+      - change_history에 메뉴 순서 before_value와 after_value를 기록한다
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuReorderRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 동일 parentMenuId의 orderedMenuIds 요청 -> menu.display_order가 순서대로 저장되고 getMenuTree 후속 조회가 같은 정렬을 반환한다'
+      - 'auth: R07 사용자가 메뉴 순서 재정렬 요청 -> HTTP 403을 반환하고 menu.display_order 값들이 유지된다'
+      - 'validation: orderedMenuIds 빈 배열 요청 -> fieldErrors.orderedMenuIds 항목과 HTTP 400을 반환한다'
+      - 'business: 서로 다른 parent_menu_id의 메뉴를 함께 요청 -> 동일 계층 규칙으로 차단되고 menu.display_order 값들이 유지된다'
+      - 'side-effect: 메뉴 순서 저장 성공 후 -> change_history.entity_name=menu 행에 operation_type=REORDER가 존재한다'
+      x-roles:
+      - authenticated
+  /api/menu-info:
+    get:
+      tags:
+      - menu
+      operationId: listMenuInfo
+      summary: 메뉴 정보 목록
+      x-related-requirements:
+      - REQ-007
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: menuName
+        in: query
+        schema:
+          type: string
+        description: 메뉴명 필터
+      - name: screenId
+        in: query
+        schema:
+          type: string
+        description: 화면ID 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    put:
+      tags:
+      - menu
+      operationId: upsertMenuInfo
+      summary: 메뉴 실행정보 저장
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - menuName과 screenId는 비어 있을 수 없다
+      - url은 시스템 관리 화면 route인 /system/... 형식이어야 한다
+      - 동일 screenId는 둘 이상의 활성 메뉴에 연결될 수 없다
+      - 사용 중인 메뉴는 물리삭제보다 useYn=N 비활성화를 우선한다
+      - R09 시스템관리자만 메뉴 실행정보를 등록·수정할 수 있다
+      x-side-effects:
+      - menu의 메뉴명, 화면ID, URL, 아이콘, 업무구분, 설명을 저장한다
+      - useYn 변경 시 menu lifecycle 상태를 갱신한다
+      - change_history에 메뉴 실행정보 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MenuInfoRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 menuName,screenId,url=/system/users 요청 -> menu.url이 저장되고 listMenuInfo 후속 조회가 screenId와 url을 반환한다'
+      - 'auth: R08 사용자가 메뉴 실행정보 저장 요청 -> HTTP 403을 반환하고 menu.updated_at이 변경되지 않는다'
+      - 'validation: url=/external/users 요청 -> fieldErrors.url 항목과 HTTP 400을 반환한다'
+      - 'business: 동일 screenId를 둘 이상의 활성 메뉴에 연결 요청 -> 활성 screenId 중복 규칙으로 차단되고 기존 menu.screen_id가 유지된다'
+      - 'side-effect: 메뉴 실행정보 저장 성공 후 -> change_history.entity_name=menu 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/code-groups:
+    get:
+      tags:
+      - code
+      operationId: listCodeGroups
+      summary: 코드그룹 검색
+      x-related-requirements:
+      - REQ-008
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: groupId
+        in: query
+        schema:
+          type: string
+        description: 그룹ID 필터
+      - name: groupName
+        in: query
+        schema:
+          type: string
+        description: 명칭 필터
+      - name: managingDepartment
+        in: query
+        schema:
+          type: string
+        description: 관리부서 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    put:
+      tags:
+      - code
+      operationId: upsertCodeGroup
+      summary: 코드그룹 저장
+      x-related-requirements:
+      - REQ-008
+      x-business-rules:
+      - groupId와 groupName은 비어 있을 수 없다
+      - groupId는 활성 코드그룹 안에서 중복될 수 없다
+      - managingDepartment를 기록해야 한다
+      - 사용 중인 코드그룹은 물리삭제보다 useYn=N 비활성화를 우선한다
+      - R09 시스템관리자만 코드그룹을 등록·수정할 수 있다
+      x-side-effects:
+      - code_group의 명칭, 설명, 관리부서, 사용여부를 저장한다
+      - useYn 변경 시 code_group lifecycle 상태를 갱신한다
+      - change_history에 코드그룹 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeGroupRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 groupId,groupName,managingDepartment 요청 -> code_group.group_name이 저장되고 listCodeGroups 후속 조회가 groupId를
+        반환한다'
+      - 'auth: R01 사용자가 코드그룹 저장 요청 -> HTTP 403을 반환하고 code_group.updated_at이 변경되지 않는다'
+      - 'validation: groupId 빈 문자열 요청 -> fieldErrors.groupId 항목과 HTTP 400을 반환한다'
+      - 'business: 활성 code_group에 이미 존재하는 groupId 요청 -> 중복 규칙으로 차단되고 기존 code_group.group_name이 유지된다'
+      - 'side-effect: 코드그룹 저장 성공 후 -> change_history.entity_name=code_group 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+  /api/code-details:
+    get:
+      tags:
+      - code
+      operationId: listCodeDetails
+      summary: 상세코드 검색
+      x-related-requirements:
+      - REQ-009
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - name: groupId
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 그룹ID 필터
+      - name: codeValue
+        in: query
+        schema:
+          type: string
+        description: 코드값 필터
+      - name: codeName
+        in: query
+        schema:
+          type: string
+        description: 코드명 필터
+      - name: useYn
+        in: query
+        schema:
+          $ref: '#/components/schemas/UseYn'
+        description: 사용여부 필터
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-roles:
+      - authenticated
+    put:
+      tags:
+      - code
+      operationId: upsertCodeDetail
+      summary: 상세코드 저장
+      x-related-requirements:
+      - REQ-009
+      x-business-rules:
+      - groupId 기준 코드그룹이 존재해야 한다
+      - codeValue와 codeName은 비어 있을 수 없다
+      - parentCodeValue가 있으면 같은 groupId 안에 존재해야 한다
+      - displayOrder는 같은 groupId 안에서 정렬 가능한 정수여야 한다
+      - 사용 중인 상세코드는 물리삭제보다 useYn=N 비활성화를 우선한다
+      - R09 시스템관리자만 상세코드를 등록·수정할 수 있다
+      x-side-effects:
+      - code_detail의 코드명, 상위코드, 정렬순서, 추가속성, 사용여부를 저장한다
+      - useYn 변경 시 code_detail lifecycle 상태를 갱신한다
+      - change_history에 상세코드 before_value와 after_value를 기록한다
+      x-state-transitions:
+      - ENABLED -> DISABLED
+      - DISABLED -> ENABLED
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeDetailRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Ok'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      security:
+      - SessionCookieAuth: []
+      x-required-tests:
+      - 'happy: R09가 groupId,codeValue,codeName,displayOrder 요청 -> code_detail.code_name이 저장되고 listCodeDetails 후속 조회가 codeValue를
+        반환한다'
+      - 'auth: R02 사용자가 상세코드 저장 요청 -> HTTP 403을 반환하고 code_detail.updated_at이 변경되지 않는다'
+      - 'validation: 상세코드 displayOrder=0 요청 -> fieldErrors.displayOrder 항목과 HTTP 400을 반환한다'
+      - 'business: parentCodeValue가 같은 groupId 안에 없는 요청 -> 상위코드 존재 규칙으로 차단되고 code_detail.parent_code_value가 유지된다'
+      - 'side-effect: 상세코드 저장 성공 후 -> change_history.entity_name=code_detail 행에 before_value와 after_value가 존재한다'
+      x-roles:
+      - authenticated
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+      description: 페이지 번호
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+      description: 페이지 크기
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 사용자 ID
+    OrgCode:
+      name: orgCode
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 조직코드
+    AssignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 사용자 역할 부여 ID
+    MenuId:
+      name: menuId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: 메뉴 ID
+  responses:
+    Ok:
+      description: 성공
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    BadRequest:
+      description: 검증 오류
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    Unauthorized:
+      description: 인증 필요
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    Forbidden:
+      description: 권한 없음
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+  schemas:
+    ApiResponse:
+      type: object
+      required:
+      - success
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          nullable: true
+          additionalProperties: true
+        error:
+          $ref: '#/components/schemas/ApiError'
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          enum:
+          - VALIDATION_ERROR
+          - UNAUTHORIZED
+          - FORBIDDEN
+          - NOT_FOUND
+          - CONFLICT
+        message:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    UseYn:
+      type: string
+      enum:
+      - Y
+      - N
+    RoleCode:
+      type: string
+      enum:
+      - R01
+      - R02
+      - R03
+      - R04
+      - R05
+      - R06
+      - R07
+      - R08
+      - R09
+    AssignmentType:
+      type: string
+      enum:
+      - POSITION_BASED
+      - MANUAL
+    PermissionTargetType:
+      type: string
+      enum:
+      - ROLE
+      - ORGANIZATION
+      - USER
+    LoginRequest:
+      type: object
+      required:
+      - loginId
+      - password
+      properties:
+        loginId:
+          type: string
+        password:
+          type: string
+          format: password
+    UpdateUserUsageRequest:
+      type: object
+      required:
+      - useYn
+      - changeReason
+      properties:
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    ReplaceUserRolesRequest:
+      type: object
+      required:
+      - roles
+      - changeReason
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/UserRoleInput'
+        changeReason:
+          type: string
+    UserRoleInput:
+      type: object
+      required:
+      - roleCode
+      - assignmentType
+      - approvedBy
+      - validFrom
+      properties:
+        roleCode:
+          $ref: '#/components/schemas/RoleCode'
+        assignmentType:
+          $ref: '#/components/schemas/AssignmentType'
+        approvedBy:
+          type: string
+        validFrom:
+          type: string
+          format: date
+        validTo:
+          type: string
+          format: date
+          nullable: true
+    OrganizationRelationRequest:
+      type: object
+      required:
+      - parentOrgCode
+      - effectiveStartDate
+      - changeReason
+      properties:
+        parentOrgCode:
+          type: string
+        effectiveStartDate:
+          type: string
+          format: date
+        effectiveEndDate:
+          type: string
+          format: date
+          nullable: true
+        changeReason:
+          type: string
+    RolePolicyRequest:
+      type: object
+      required:
+      - roleCode
+      - purpose
+      - assignmentCriteria
+      - defaultDataScope
+      properties:
+        roleCode:
+          $ref: '#/components/schemas/RoleCode'
+        roleName:
+          type: string
+        purpose:
+          type: string
+        assignmentCriteria:
+          type: string
+        defaultDataScope:
+          type: string
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+    UserRoleAssignmentRequest:
+      allOf:
+      - $ref: '#/components/schemas/UserRoleInput'
+      - type: object
+        required:
+        - userId
+        properties:
+          userId:
+            type: string
+    RevokeRequest:
+      type: object
+      required:
+      - changeReason
+      properties:
+        changeReason:
+          type: string
+    MenuPermissionMatrixRequest:
+      type: object
+      required:
+      - targetType
+      - targetId
+      - permissions
+      properties:
+        targetType:
+          $ref: '#/components/schemas/PermissionTargetType'
+        targetId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: object
+            required:
+            - menuId
+            - accessAllowedYn
+            properties:
+              menuId:
+                type: string
+              accessAllowedYn:
+                $ref: '#/components/schemas/UseYn'
+              functionPermissions:
+                type: array
+                items:
+                  type: string
+    MenuMoveRequest:
+      type: object
+      required:
+      - parentMenuId
+      - displayOrder
+      - changeReason
+      properties:
+        parentMenuId:
+          type: string
+          nullable: true
+        displayOrder:
+          type: integer
+          minimum: 1
+        changeReason:
+          type: string
+    MenuReorderRequest:
+      type: object
+      required:
+      - parentMenuId
+      - orderedMenuIds
+      - changeReason
+      properties:
+        parentMenuId:
+          type: string
+          nullable: true
+        orderedMenuIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        changeReason:
+          type: string
+    MenuInfoRequest:
+      type: object
+      required:
+      - menuId
+      - menuName
+      - screenId
+      - url
+      - businessDomain
+      - useYn
+      properties:
+        menuId:
+          type: string
+        menuName:
+          type: string
+        screenId:
+          type: string
+        url:
+          type: string
+        icon:
+          type: string
+        businessDomain:
+          type: string
+        description:
+          type: string
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    CodeGroupRequest:
+      type: object
+      required:
+      - groupId
+      - groupName
+      - managingDepartment
+      - useYn
+      properties:
+        groupId:
+          type: string
+        groupName:
+          type: string
+        description:
+          type: string
+        managingDepartment:
+          type: string
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        changeReason:
+          type: string
+    CodeDetailRequest:
+      type: object
+      required:
+      - groupId
+      - codeValue
+      - codeName
+      - displayOrder
+      - useYn
+      properties:
+        groupId:
+          type: string
+        codeValue:
+          type: string
+        codeName:
+          type: string
+        parentCodeValue:
+          type: string
+          nullable: true
+        displayOrder:
+          type: integer
+          minimum: 1
+        extraAttributes:
+          type: object
+          additionalProperties: true
+        useYn:
+          $ref: '#/components/schemas/UseYn'
+        validFrom:
+          type: string
+          format: date
+          nullable: true
+        validTo:
+          type: string
+          format: date
+          nullable: true
+        changeReason:
+          type: string
+  securitySchemes:
+    SessionCookieAuth:
+      type: apiKey
+      in: cookie
+      name: SESSION
+      description: HttpOnly SameSite=Lax 인증 session cookie
