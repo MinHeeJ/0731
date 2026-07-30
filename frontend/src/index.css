@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.625rem;
+  --background: #ffffff;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --primary: #101827;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #172033;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f4f0e8;
+  --accent-foreground: #101827;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #d1d5db;
+  --ring: #b79356;
+  --sidebar: #f5f7fb;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #101827;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e9edf5;
+  --sidebar-accent-foreground: #101827;
+  --sidebar-border: #e2e8f0;
+}
+
+* {
+  border-color: var(--border);
+  outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  width: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    Inter,
+    Pretendard,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer utilities {
+  .bg-background {
+    background-color: var(--background);
+  }
+
+  .bg-card {
+    background-color: var(--card);
+  }
+
+  .bg-primary {
+    background-color: var(--primary);
+  }
+
+  .bg-secondary {
+    background-color: var(--secondary);
+  }
+
+  .bg-muted {
+    background-color: var(--muted);
+  }
+
+  .bg-accent {
+    background-color: var(--accent);
+  }
+
+  .bg-sidebar {
+    background-color: var(--sidebar);
+  }
+
+  .bg-sidebar-primary {
+    background-color: var(--sidebar-primary);
+  }
+
+  .bg-sidebar-accent {
+    background-color: var(--sidebar-accent);
+  }
+
+  .text-foreground {
+    color: var(--foreground);
+  }
+
+  .text-card-foreground {
+    color: var(--card-foreground);
+  }
+
+  .text-primary {
+    color: var(--primary);
+  }
+
+  .text-primary-foreground {
+    color: var(--primary-foreground);
+  }
+
+  .text-secondary-foreground {
+    color: var(--secondary-foreground);
+  }
+
+  .text-muted-foreground {
+    color: var(--muted-foreground);
+  }
+
+  .text-accent-foreground {
+    color: var(--accent-foreground);
+  }
+
+  .text-destructive {
+    color: var(--destructive);
+  }
+
+  .text-sidebar-foreground {
+    color: var(--sidebar-foreground);
+  }
+
+  .text-sidebar-primary-foreground {
+    color: var(--sidebar-primary-foreground);
+  }
+
+  .text-sidebar-accent-foreground {
+    color: var(--sidebar-accent-foreground);
+  }
+
+  .border-sidebar-border {
+    border-color: var(--sidebar-border);
+  }
+
+  .border-input {
+    border-color: var(--input);
+  }
+
+  .accent-primary {
+    accent-color: var(--primary);
+  }
+
+  .shadow-xs {
+    box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .faded-bottom {
+    position: relative;
+  }
+
+  .faded-bottom::after {
+    pointer-events: none;
+    position: sticky;
+    inset-inline: 0;
+    bottom: 0;
+    display: block;
+    height: 4rem;
+    content: "";
+    background: linear-gradient(to top, var(--background), transparent);
+  }
+}
+
+@layer components {
+  .dense-input {
+    @apply w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-all placeholder:text-slate-400 focus:border-brand-gold focus:outline-none focus:ring-2 focus:ring-brand-gold/30 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .primary-button {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-brand-navy px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-gold/40 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .secondary-button {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-xs transition-all hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-gold/30 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .danger-button {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-xs transition-all hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .card {
+    @apply rounded-xl border bg-white text-slate-900 shadow-sm;
+  }
+
+  .state-banner {
+    @apply flex flex-col justify-between gap-3 rounded-xl border p-4 shadow-sm sm:flex-row sm:items-start;
+  }
+
+  .state-banner-success {
+    @apply border-emerald-200 bg-emerald-50 text-emerald-800;
+  }
+
+  .state-banner-danger {
+    @apply border-red-200 bg-red-50 text-red-800;
+  }
+
+  .state-banner-muted {
+    @apply border-slate-200 bg-white text-slate-700;
+  }
+}
