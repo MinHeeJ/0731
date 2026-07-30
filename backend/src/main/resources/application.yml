@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: cms-common-foundation
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://database:5432/cms}
+    username: ${SPRING_DATASOURCE_USERNAME:cms}
+    password: ${SPRING_DATASOURCE_PASSWORD:cms_password}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080
