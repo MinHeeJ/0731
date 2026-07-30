@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.cms.common.mapper.CommonMapper">
+  <select id="findUserByLoginId" resultType="map">
+    SELECT user_id as "userId", login_id as "loginId", password_hash as "passwordHash", user_name as "userName", system_use_yn as "systemUseYn"
+    FROM user_account WHERE login_id = #{loginId}
+  </select>
+  <select id="findUserById" resultType="map">
+    SELECT user_id as "userId", login_id as "loginId", user_name as "userName", system_use_yn as "systemUseYn"
+    FROM user_account WHERE user_id = #{userId}
+  </select>
+  <select id="findActiveRoleCodes" resultType="string">
+    SELECT role_code FROM user_role_assignment
+    WHERE user_id = #{userId} AND status = 'ACTIVE' AND valid_from &lt;= CURRENT_DATE AND (valid_to IS NULL OR valid_to &gt;= CURRENT_DATE)
+    ORDER BY role_code
+  </select>
+  <insert id="insertSession">
+    INSERT INTO session_store(session_id, user_id, expires_at) VALUES(#{sessionId}, #{userId}, #{expiresAt})
+  </insert>
+  <delete id="deleteSession">DELETE FROM session_store WHERE session_id = #{sessionId}</delete>
+  <select id="findSession" resultType="map">
+    SELECT s.session_id as "sessionId", s.user_id as "userId", u.login_id as "loginId", u.user_name as "userName", s.expires_at as "expiresAt"
+    FROM session_store s JOIN user_account u ON u.user_id = s.user_id
+    WHERE s.session_id = #{sessionId} AND s.expires_at &gt; CURRENT_TIMESTAMP AND u.system_use_yn = 'Y'
+  </select>
+
+  <select id="listDeliveryStatus" resultType="map">
+    SELECT status_key as "statusKey", status_value as "statusValue", description, checked_at as "checkedAt" FROM delivery_status ORDER BY status_key
+  </select>
+
+  <select id="searchUsers" resultType="map">
+      SELECT u.user_id as "userId", u.employee_no as "employeeNo", COALESCE(kps.person_name, u.user_name) as "userName", COALESCE(kps.org_code, u.org_code) as "orgCode", COALESCE(kps.org_name, u.org_name) as "orgName", COALESCE(kps.position_name, u.position_name) as "positionName", COALESCE(kps.duty_name, u.duty_name) as "dutyName", COALESCE(kps.employment_status, u.employment_status) as "employmentStatus", COALESCE(kps.retirement_date, u.retirement_date) as "retirementDate", COALESCE(kps.last_synced_at, u.last_synced_at) as "lastSyncedAt", u.system_use_yn as "systemUseYn", CASE WHEN kps.employee_no IS NULL THEN 'LOCAL' ELSE 'KORUS_MOCK' END as "personnelSource", COALESCE(string_agg(ura.role_code, ',' ORDER BY ura.role_code), '') as "roleCodes"
+      FROM user_account u
+      LEFT JOIN korus_personnel_snapshot kps ON kps.employee_no = u.employee_no AND kps.snapshot_status = 'ACTIVE'
+      LEFT JOIN user_role_assignment ura ON ura.user_id = u.user_id AND ura.status = 'ACTIVE'
+      <where>
+        <if test="filter != null and filter != ''">
+          (u.employee_no LIKE CONCAT('%', #{filter}, '%') OR COALESCE(kps.person_name, u.user_name) LIKE CONCAT('%', #{filter}, '%') OR COALESCE(kps.org_name, u.org_name) LIKE CONCAT('%', #{filter}, '%') OR COALESCE(kps.position_name, u.position_name) LIKE CONCAT('%', #{filter}, '%') OR ura.role_code LIKE CONCAT('%', #{filter}, '%') OR u.system_use_yn = #{filter})
+        </if>
+      </where>
+      GROUP BY u.user_id, u.employee_no, u.user_name, u.org_code, u.org_name, u.position_name, u.duty_name, u.employment_status, u.retirement_date, u.last_synced_at, u.system_use_yn, kps.employee_no, kps.person_name, kps.org_code, kps.org_name, kps.position_name, kps.duty_name, kps.employment_status, kps.retirement_date, kps.last_synced_at
+      ORDER BY u.employee_no LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="searchOrganizations" resultType="map">
+      SELECT org_code as "orgCode", org_name as "orgName", org_type as "orgType", parent_org_code as "parentOrgCode", start_date as "startDate", end_date as "endDate", status, changed_at as "changedAt"
+      FROM organization
+      <where><if test="filter != null and filter != ''">(org_code LIKE CONCAT('%', #{filter}, '%') OR org_name LIKE CONCAT('%', #{filter}, '%') OR org_type LIKE CONCAT('%', #{filter}, '%'))</if></where>
+      ORDER BY parent_org_code NULLS FIRST, org_code LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="listRoles" resultType="map">
+      SELECT role_code as "roleCode", role_name as "roleName", purpose, grant_criteria as "grantCriteria", default_data_scope as "defaultDataScope", use_yn as "useYn" FROM role
+      <where><if test="filter != null and filter != ''">(role_code LIKE CONCAT('%', #{filter}, '%') OR role_name LIKE CONCAT('%', #{filter}, '%') OR purpose LIKE CONCAT('%', #{filter}, '%'))</if></where>
+      ORDER BY role_code LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="searchUserRoles" resultType="map">
+      SELECT ura.assignment_id as "assignmentId", u.user_id as "userId", u.employee_no as "employeeNo", u.user_name as "userName", r.role_code as "roleCode", r.role_name as "roleName", ura.valid_from as "validFrom", ura.valid_to as "validTo", ura.approver_id as "approverId", ura.assignment_source as "assignmentSource", ura.status
+      FROM user_role_assignment ura JOIN user_account u ON u.user_id=ura.user_id JOIN role r ON r.role_code=ura.role_code
+      <where><if test="filter != null and filter != ''">(u.employee_no LIKE CONCAT('%', #{filter}, '%') OR u.user_name LIKE CONCAT('%', #{filter}, '%') OR r.role_code LIKE CONCAT('%', #{filter}, '%') OR r.role_name LIKE CONCAT('%', #{filter}, '%'))</if></where>
+      ORDER BY u.employee_no, r.role_code LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="getMenuPermissions" resultType="map">
+      SELECT mp.permission_id as "permissionId", mp.target_type as "targetType", mp.target_id as "targetId", m.menu_id as "menuId", m.menu_name as "menuName", m.parent_menu_id as "parentMenuId", mp.can_read as "canRead", mp.can_create as "canCreate", mp.can_update as "canUpdate", mp.can_disable as "canDisable", mp.can_access as "canAccess"
+      FROM menu_permission mp JOIN menu m ON m.menu_id=mp.menu_id
+      <where>
+        <if test="targetType != null and targetType != ''">mp.target_type = #{targetType}</if>
+        <if test="targetId != null and targetId != ''">AND mp.target_id = #{targetId}</if>
+      </where>
+      ORDER BY m.sort_order, m.menu_id
+  </select>
+  <select id="getMenuTree" resultType="map">
+    SELECT menu_id as "menuId", parent_menu_id as "parentMenuId", menu_name as "menuName", screen_id as "screenId", route_path as "routePath", icon_name as "iconName", business_area as "businessArea", description, sort_order as "sortOrder", use_yn as "useYn", status FROM menu ORDER BY parent_menu_id NULLS FIRST, sort_order, menu_id
+  </select>
+  <select id="searchMenus" resultType="map">
+      SELECT menu_id as "menuId", parent_menu_id as "parentMenuId", menu_name as "menuName", screen_id as "screenId", route_path as "routePath", icon_name as "iconName", business_area as "businessArea", description, sort_order as "sortOrder", use_yn as "useYn", status FROM menu
+      <where><if test="filter != null and filter != ''">(menu_id LIKE CONCAT('%', #{filter}, '%') OR menu_name LIKE CONCAT('%', #{filter}, '%') OR route_path LIKE CONCAT('%', #{filter}, '%') OR use_yn = #{filter})</if></where>
+      ORDER BY parent_menu_id NULLS FIRST, sort_order, menu_id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="searchCodeGroups" resultType="map">
+      SELECT group_id as "groupId", group_name as "groupName", description, managing_department as "managingDepartment", use_yn as "useYn" FROM code_group
+      <where><if test="filter != null and filter != ''">(group_id LIKE CONCAT('%', #{filter}, '%') OR group_name LIKE CONCAT('%', #{filter}, '%') OR managing_department LIKE CONCAT('%', #{filter}, '%'))</if></where>
+      ORDER BY group_id LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="listDetailCodes" resultType="map">
+    SELECT group_id as "groupId", code_value as "codeValue", code_name as "codeName", parent_code_value as "parentCodeValue", sort_order as "sortOrder", use_yn as "useYn", valid_from as "validFrom", valid_to as "validTo", extra_attributes as "extraAttributes" FROM detail_code WHERE group_id = #{groupId} ORDER BY sort_order, code_value
+  </select>
+  <select id="getMenusForRoles" resultType="map">
+    SELECT DISTINCT m.menu_id as "menuId", m.parent_menu_id as "parentMenuId", m.menu_name as "menuName", m.screen_id as "screenId", m.route_path as "routePath", m.icon_name as "iconName", m.sort_order as "sortOrder"
+    FROM menu m JOIN menu_permission mp ON mp.menu_id=m.menu_id
+    WHERE m.use_yn='Y' AND m.status='ACTIVE' AND mp.target_type='ROLE' AND mp.can_access='Y'
+    <if test="roles != null and roles.size() > 0">AND mp.target_id IN <foreach collection="roles" item="role" open="(" separator="," close=")">#{role}</foreach></if>
+    ORDER BY m.sort_order, m.menu_id
+  </select>
+
+  <update id="updateUserUsage">UPDATE user_account SET system_use_yn=#{systemUseYn}, updated_at=CURRENT_TIMESTAMP WHERE user_id=#{userId}</update>
+  <update id="deactivateUserRoles">UPDATE user_role_assignment SET status='REVOKED', updated_at=CURRENT_TIMESTAMP WHERE user_id=#{userId} AND status='ACTIVE'</update>
+  <insert id="insertUserRole">INSERT INTO user_role_assignment(user_id, role_code, valid_from, valid_to, approver_id, assignment_source, status) VALUES(#{userId}, #{roleCode}, CURRENT_DATE, NULL, #{actorId}, 'MANUAL', 'ACTIVE')</insert>
+  <insert id="insertChangeHistory">INSERT INTO change_history(entity_name, entity_id, action_type, before_value, after_value, reason, actor_id) VALUES(#{entityName}, #{entityId}, #{actionType}, #{beforeValue}, #{afterValue}, #{reason}, #{actorId})</insert>
+  <update id="updateRole">UPDATE role SET role_name=#{roleName}, purpose=#{purpose}, grant_criteria=#{grantCriteria}, default_data_scope=#{defaultDataScope}, updated_at=CURRENT_TIMESTAMP WHERE role_code=#{roleCode}</update>
+  <insert id="insertRole">INSERT INTO role(role_code,role_name,purpose,grant_criteria,default_data_scope) VALUES(#{roleCode},#{roleName},#{purpose},#{grantCriteria},#{defaultDataScope})</insert>
+  <update id="updateMenu">UPDATE menu SET parent_menu_id=#{parentMenuId}, menu_name=#{menuName}, screen_id=#{screenId}, route_path=#{routePath}, icon_name=#{iconName}, business_area=#{businessArea}, description=#{description}, sort_order=#{sortOrder}, use_yn=#{useYn}, status=CASE WHEN #{useYn}='Y' THEN 'ACTIVE' ELSE 'INACTIVE' END, updated_at=CURRENT_TIMESTAMP WHERE menu_id=#{menuId}</update>
+  <insert id="insertMenu">INSERT INTO menu(menu_id,parent_menu_id,menu_name,screen_id,route_path,icon_name,business_area,description,sort_order,use_yn,status) VALUES(#{menuId},#{parentMenuId},#{menuName},#{screenId},#{routePath},#{iconName},#{businessArea},#{description},#{sortOrder},#{useYn},CASE WHEN #{useYn}='Y' THEN 'ACTIVE' ELSE 'INACTIVE' END)</insert>
+  <update id="updateCodeGroup">UPDATE code_group SET group_name=#{groupName}, description=#{description}, managing_department=#{managingDepartment}, use_yn=#{useYn}, updated_at=CURRENT_TIMESTAMP WHERE group_id=#{groupId}</update>
+  <insert id="insertCodeGroup">INSERT INTO code_group(group_id,group_name,description,managing_department,use_yn) VALUES(#{groupId},#{groupName},#{description},#{managingDepartment},#{useYn})</insert>
+  <update id="updateDetailCode">UPDATE detail_code SET code_name=#{codeName}, parent_code_value=#{parentCodeValue}, sort_order=#{sortOrder}, use_yn=#{useYn}, valid_from=CAST(#{validFrom} AS date), valid_to=CAST(#{validTo} AS date), extra_attributes=#{extraAttributes}, updated_at=CURRENT_TIMESTAMP WHERE group_id=#{groupId} AND code_value=#{codeValue}</update>
+  <insert id="insertDetailCode">INSERT INTO detail_code(group_id,code_value,code_name,parent_code_value,sort_order,use_yn,valid_from,valid_to,extra_attributes) VALUES(#{groupId},#{codeValue},#{codeName},#{parentCodeValue},#{sortOrder},#{useYn},CAST(#{validFrom} AS date),CAST(#{validTo} AS date),#{extraAttributes})</insert>
+  <update id="updateOrganizationRelation">UPDATE organization SET parent_org_code=#{parentOrgCode}, start_date=CAST(#{startDate} AS date), end_date=CAST(#{endDate} AS date), changed_at=CURRENT_TIMESTAMP WHERE org_code=#{orgCode}</update>
+  <update id="updateMenuPermission">UPDATE menu_permission SET can_read=#{canRead}, can_create=#{canCreate}, can_update=#{canUpdate}, can_disable=#{canDisable}, can_access=#{canAccess}, updated_at=CURRENT_TIMESTAMP WHERE target_type=#{targetType} AND target_id=#{targetId} AND menu_id=#{menuId}</update>
+  <insert id="insertMenuPermission">INSERT INTO menu_permission(target_type,target_id,menu_id,can_read,can_create,can_update,can_disable,can_access) VALUES(#{targetType},#{targetId},#{menuId},#{canRead},#{canCreate},#{canUpdate},#{canDisable},#{canAccess})</insert>
+  <update id="changeMenuParent">UPDATE menu SET parent_menu_id=#{parentMenuId}, updated_at=CURRENT_TIMESTAMP WHERE menu_id=#{menuId}</update>
+  <update id="reorderMenu">UPDATE menu SET sort_order=#{sortOrder}, updated_at=CURRENT_TIMESTAMP WHERE menu_id=#{menuId}</update>
+  <insert id="assignUserRole">INSERT INTO user_role_assignment(user_id,role_code,valid_from,valid_to,approver_id,assignment_source,status) VALUES(#{userId},#{roleCode},CAST(#{validFrom} AS date),CAST(#{validTo} AS date),#{approverId},#{assignmentSource},'ACTIVE')</insert>
+  <update id="updateUserRole">UPDATE user_role_assignment SET valid_from=CAST(#{validFrom} AS date), valid_to=CAST(#{validTo} AS date), approver_id=#{approverId}, assignment_source=#{assignmentSource}, updated_at=CURRENT_TIMESTAMP WHERE assignment_id=#{assignmentId}</update>
+  <update id="revokeUserRole">UPDATE user_role_assignment SET status='REVOKED', updated_at=CURRENT_TIMESTAMP WHERE assignment_id=#{assignmentId}</update>
+</mapper>
