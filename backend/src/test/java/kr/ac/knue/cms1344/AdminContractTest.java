@@ -2,6 +2,7 @@ package kr.ac.knue.cms1344;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -24,6 +25,7 @@ import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Map;
 import kr.ac.knue.cms1344.persistence.AdminMapper;
+import org.apache.ibatis.annotations.Select;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -71,6 +73,23 @@ class AdminContractTest {
 
     verify(mapper).insertSession(anyString(), eq("U-ADMIN"));
     verify(mapper).touchLogin("U-ADMIN");
+  }
+
+  @Test
+  void mapperSqlAliasesRuntimeMapKeysToCamelCaseForLoginSessionAndMenuFlow() throws Exception {
+    String loginSql = String.join(" ", AdminMapper.class.getMethod("userByLogin", String.class).getAnnotation(Select.class).value());
+    String userByIdSql = String.join(" ", AdminMapper.class.getMethod("userById", String.class).getAnnotation(Select.class).value());
+    String activeSessionSql = String.join(" ", AdminMapper.class.getMethod("activeSession", String.class).getAnnotation(Select.class).value());
+    String permissionSql = String.join(" ", AdminMapper.class.getMethod("permissionMatrix", String.class, String.class).getAnnotation(Select.class).value());
+
+    assertTrue(loginSql.contains("u.user_id as \"userId\""));
+    assertTrue(loginSql.contains("u.login_id as \"loginId\""));
+    assertTrue(loginSql.contains("u.system_use_yn as \"systemUseYn\""));
+    assertTrue(loginSql.contains("array_agg(ur.role_code order by ur.role_code) as \"roleCodes\""));
+    assertTrue(userByIdSql.contains("u.user_id as \"userId\""));
+    assertTrue(activeSessionSql.contains("s.session_id as \"sessionId\""));
+    assertTrue(activeSessionSql.contains("s.user_id as \"userId\""));
+    assertTrue(permissionSql.contains("mp.access_allowed_yn,'N') as \"accessAllowedYn\""));
   }
 
   @Test

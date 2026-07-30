@@ -10,11 +10,11 @@ import org.apache.ibatis.annotations.*;
 public interface AdminMapper {
   @Select("select count(*) from internal_user u join user_role ur on ur.user_id=u.user_id and ur.status='ACTIVE' where u.login_id=#{loginId} and u.password_hash=#{passwordHash} and u.system_use_yn='Y' and ur.role_code='R09'")
   int canLogin(String loginId, String passwordHash);
-  @Select("select u.user_id, u.login_id, u.system_use_yn, k.employee_no, k.person_name, k.org_code, array_agg(ur.role_code order by ur.role_code) as role_codes from internal_user u join korus_person_snapshot k on k.employee_no=u.employee_no left join user_role ur on ur.user_id=u.user_id and ur.status='ACTIVE' where u.login_id=#{loginId} group by u.user_id,k.employee_no,k.person_name,k.org_code")
+  @Select("select u.user_id as \"userId\", u.login_id as \"loginId\", u.system_use_yn as \"systemUseYn\", k.employee_no as \"employeeNo\", k.person_name as \"personName\", k.org_code as \"orgCode\", array_agg(ur.role_code order by ur.role_code) as \"roleCodes\" from internal_user u join korus_person_snapshot k on k.employee_no=u.employee_no left join user_role ur on ur.user_id=u.user_id and ur.status='ACTIVE' where u.login_id=#{loginId} group by u.user_id,k.employee_no,k.person_name,k.org_code")
   Map<String,Object> userByLogin(String loginId);
-  @Select("select u.user_id, u.login_id, u.system_use_yn, k.employee_no, k.person_name, k.org_code, array_agg(ur.role_code order by ur.role_code) as role_codes from internal_user u join korus_person_snapshot k on k.employee_no=u.employee_no left join user_role ur on ur.user_id=u.user_id and ur.status='ACTIVE' where u.user_id=#{userId} group by u.user_id,k.employee_no,k.person_name,k.org_code")
+  @Select("select u.user_id as \"userId\", u.login_id as \"loginId\", u.system_use_yn as \"systemUseYn\", k.employee_no as \"employeeNo\", k.person_name as \"personName\", k.org_code as \"orgCode\", array_agg(ur.role_code order by ur.role_code) as \"roleCodes\" from internal_user u join korus_person_snapshot k on k.employee_no=u.employee_no left join user_role ur on ur.user_id=u.user_id and ur.status='ACTIVE' where u.user_id=#{userId} group by u.user_id,k.employee_no,k.person_name,k.org_code")
   Map<String,Object> userById(String userId);
-  @Select("select s.session_id, s.user_id, s.status from session s where s.session_id=#{sessionId} and s.status='AUTHENTICATED' and s.expires_at > now()")
+  @Select("select s.session_id as \"sessionId\", s.user_id as \"userId\", s.status from session s where s.session_id=#{sessionId} and s.status='AUTHENTICATED' and s.expires_at > now()")
   Map<String,Object> activeSession(String sessionId);
   @Insert("insert into session(session_id,user_id,issued_at,expires_at,status) values(#{sessionId},#{userId},now(),now()+ interval '8 hours','AUTHENTICATED')")
   void insertSession(String sessionId, String userId);
@@ -56,7 +56,7 @@ public interface AdminMapper {
   @Update("update user_role set status='REVOKED', revoked_at=now(), revoked_by=#{actor}, change_reason=#{reason}, updated_at=now(), updated_by=#{actor} where user_role_id=#{assignmentId} and status='ACTIVE'")
   int revokeAssignment(String assignmentId,String actor,String reason);
 
-  @Select("select m.menu_id, m.parent_menu_id, m.menu_level, m.menu_name, m.screen_id, m.url, m.display_order, coalesce(mp.access_allowed_yn,'N') as access_allowed_yn, coalesce(mp.function_permissions,'[]'::jsonb) as function_permissions from menu m left join menu_permission mp on mp.menu_id=m.menu_id and mp.target_type=#{targetType} and mp.target_id=#{targetId} order by m.menu_level,m.display_order")
+  @Select("select m.menu_id as \"menuId\", m.parent_menu_id as \"parentMenuId\", m.menu_level as \"menuLevel\", m.menu_name as \"menuName\", m.screen_id as \"screenId\", m.url, m.display_order as \"displayOrder\", coalesce(mp.access_allowed_yn,'N') as \"accessAllowedYn\", coalesce(mp.function_permissions,'[]'::jsonb) as \"functionPermissions\" from menu m left join menu_permission mp on mp.menu_id=m.menu_id and mp.target_type=#{targetType} and mp.target_id=#{targetId} order by m.menu_level,m.display_order")
   List<Map<String,Object>> permissionMatrix(String targetType,String targetId);
   @Select("select count(*) from menu where menu_id=#{menuId}") int existsMenu(String menuId);
   @Insert("insert into menu_permission(permission_id,target_type,target_id,menu_id,access_allowed_yn,function_permissions,created_by,updated_by) values(#{id},#{targetType},#{targetId},#{menuId},#{allowed},#{functions}::jsonb,#{actor},#{actor}) on conflict(target_type,target_id,menu_id) do update set access_allowed_yn=excluded.access_allowed_yn,function_permissions=excluded.function_permissions,updated_at=now(),updated_by=excluded.updated_by")
