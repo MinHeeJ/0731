@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.performance.organization.OrganizationMapper">
+  <select id="list" resultType="kr.ac.knue.performance.organization.OrganizationDto">
+    select o.organization_id as "organizationId", o.organization_code as "organizationCode", o.organization_name as "organizationName", o.organization_type as "organizationType", r.parent_organization_id as "parentOrganizationId", r.effective_start_date as "effectiveStartDate", r.effective_end_date as "effectiveEndDate", r.relation_id as "relationId"
+    from organization o left join organization_relation r on r.organization_id=o.organization_id and r.is_active=true
+    <where><if test="organizationCode != null">and o.organization_code = #{organizationCode}</if><if test="organizationName != null">and o.organization_name like concat('%', #{organizationName}, '%')</if><if test="parentOrganizationId != null">and r.parent_organization_id = #{parentOrganizationId}</if></where>
+    order by o.organization_code
+  </select>
+  <update id="updateRelation">update organization_relation set organization_id=#{organizationId}, parent_organization_id=#{parentOrganizationId}, effective_start_date=#{start}, effective_end_date=#{end}, updated_at=now() where relation_id=#{relationId}</update>
+  <select id="findByRelation" resultType="kr.ac.knue.performance.organization.OrganizationDto">select o.organization_id as "organizationId", o.organization_code as "organizationCode", o.organization_name as "organizationName", o.organization_type as "organizationType", r.parent_organization_id as "parentOrganizationId", r.effective_start_date as "effectiveStartDate", r.effective_end_date as "effectiveEndDate", r.relation_id as "relationId" from organization_relation r join organization o on o.organization_id=r.organization_id where r.relation_id=#{relationId}</select>
+</mapper>
