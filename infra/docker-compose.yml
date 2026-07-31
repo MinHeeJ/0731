@@ -1,0 +1,65 @@
+services:
+  database:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_DB: common_foundation
+      POSTGRES_USER: common_admin
+      POSTGRES_PASSWORD: common_password
+    volumes:
+      - common_foundation_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U common_admin -d common_foundation"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - common_foundation
+  backend:
+    image: common-foundation-backend:0.1.0
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    pull_policy: build
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://database:5432/common_foundation
+      SPRING_DATASOURCE_USERNAME: common_admin
+      SPRING_DATASOURCE_PASSWORD: common_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -qO- http://localhost:8080/api/health | grep -q '\"success\":true'"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - common_foundation
+  frontend:
+    image: common-foundation-frontend:0.1.0
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    pull_policy: build
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - common_foundation
+networks:
+  common_foundation:
+    ipam:
+      config:
+        - subnet: 10.134.9.0/24
+volumes:
+  common_foundation_data:

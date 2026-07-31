@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.performance.role.RoleMapper">
+  <select id="list" resultType="kr.ac.knue.performance.role.RoleDto">select role_code as "roleCode", role_name as "roleName", purpose, grant_criteria as "grantCriteria", default_data_scope as "defaultDataScope", is_active as "isActive" from role <where><if test="roleCode != null">and role_code=#{roleCode}</if><if test="roleName != null">and role_name like concat('%', #{roleName}, '%')</if></where> order by role_code</select>
+  <insert id="insert">insert into role(role_code, role_name, purpose, grant_criteria, default_data_scope) values (#{roleCode}, #{roleName}, coalesce(#{purpose}, ''), #{grantCriteria}, #{defaultDataScope})</insert>
+  <update id="update">update role set role_name=#{request.roleName}, purpose=coalesce(#{request.purpose}, ''), grant_criteria=#{request.grantCriteria}, default_data_scope=#{request.defaultDataScope}, updated_at=now() where role_code=#{roleCode}</update>
+  <select id="find" resultType="kr.ac.knue.performance.role.RoleDto">select role_code as "roleCode", role_name as "roleName", purpose, grant_criteria as "grantCriteria", default_data_scope as "defaultDataScope", is_active as "isActive" from role where role_code=#{roleCode}</select>
+</mapper>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.performance.auth.AuthMapper">
+  <select id="findLoginUser" resultType="kr.ac.knue.performance.auth.AuthMapper$AuthUser">
+    select user_id as "userId", login_id as "loginId", password_hash as "passwordHash", system_use_enabled as "systemUseEnabled", status
+    from user_account where login_id = #{loginId} and is_active = true
+  </select>
+  <select id="findCurrentUserIdentityByTokenHash" resultType="kr.ac.knue.performance.auth.AuthMapper$AuthIdentity">
+    select u.user_id as "userId", u.login_id as "loginId"
+    from auth_session s join user_account u on u.user_id = s.user_id
+    where s.session_token_hash = #{tokenHash} and s.status = 'ACTIVE' and s.expires_at > now() and u.system_use_enabled = true
+  </select>
+  <select id="findCurrentUserIdentityById" resultType="kr.ac.knue.performance.auth.AuthMapper$AuthIdentity">
+    select u.user_id as "userId", u.login_id as "loginId"
+    from user_account u
+    where u.user_id = #{userId}
+  </select>
+  <select id="findRoleCodesByUserId" resultType="string">
+    select role_code from user_role_assignment where user_id = #{userId} and status = 'ACTIVE' order by role_code
+  </select>
+  <insert id="insertSession">
+    insert into auth_session(user_id, session_token_hash, expires_at, status) values (#{userId}, #{tokenHash}, #{expiresAt}, 'ACTIVE')
+  </insert>
+  <update id="logout">
+    update auth_session set status = 'LOGGED_OUT', updated_at = now() where session_token_hash = #{tokenHash} and status = 'ACTIVE'
+  </update>
+</mapper>

@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://database:5432/common_foundation}
+    username: ${SPRING_DATASOURCE_USERNAME:common_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:common_password}
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: always
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-handlers-package: kr.ac.knue.performance.common.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
+server:
+  port: 8080
