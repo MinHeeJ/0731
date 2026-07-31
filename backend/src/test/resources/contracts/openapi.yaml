@@ -1,0 +1,1540 @@
+openapi: 3.0.3
+info:
+  title: CMS-1346 공통기능 1차 API
+  version: 0.1.0
+servers:
+- url: /
+security:
+- sessionCookie: []
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: 헬스 체크
+      x-related-requirements:
+      - REQ-031
+      - REQ-040
+      - REQ-047
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: 관리자 로그인
+      x-related-requirements:
+      - REQ-027
+      - REQ-030
+      - REQ-039
+      - REQ-024
+      - REQ-036
+      - REQ-044
+      x-business-rules:
+      - REQ-027 요구의 필수 식별자와 권한을 서버에서 검증한다
+      - REQ-030 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 login 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-027 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''관리자 로그인 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId login와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/auth/logout:
+    post:
+      operationId: logout
+      summary: 로그아웃
+      x-related-requirements:
+      - REQ-027
+      x-business-rules:
+      - REQ-027 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 logout 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-027 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''로그아웃 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId logout와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/me:
+    get:
+      operationId: getCurrentUser
+      summary: 현재 사용자
+      x-related-requirements:
+      - REQ-027
+      - REQ-028
+      - REQ-029
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/me/menus:
+    get:
+      operationId: getMyMenus
+      summary: 내 메뉴 조회
+      x-related-requirements:
+      - REQ-017
+      - REQ-018
+      - REQ-016
+      - REQ-028
+      - REQ-029
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/users:
+    get:
+      operationId: listUsers
+      summary: 사용자 검색
+      x-related-requirements:
+      - REQ-001
+      - REQ-011
+      - REQ-021
+      - REQ-023
+      - REQ-031
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/users/{userId}/account:
+    patch:
+      operationId: updateUserAccount
+      summary: 사용자 사용여부 변경
+      x-related-requirements:
+      - REQ-001
+      x-business-rules:
+      - REQ-001 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateUserAccount 처리 전후 값을 기록한다
+      x-state-transitions:
+      - app_user.status: ACTIVE -> INACTIVE 또는 INACTIVE -> ACTIVE
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-001 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''사용자 사용여부 변경 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateUserAccount와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/users/{userId}/roles:
+    put:
+      operationId: replaceUserBusinessRoles
+      summary: 사용자 업무 역할 변경
+      x-related-requirements:
+      - REQ-001
+      - REQ-004
+      x-business-rules:
+      - REQ-001 요구의 필수 식별자와 권한을 서버에서 검증한다
+      - REQ-004 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 replaceUserBusinessRoles 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-001 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''사용자 업무 역할 변경 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId replaceUserBusinessRoles와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/orgs:
+    get:
+      operationId: listOrganizations
+      summary: 조직 목록 조회
+      x-related-requirements:
+      - REQ-002
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/orgs/tree:
+    get:
+      operationId: getOrganizationTree
+      summary: 조직 계층 조회
+      x-related-requirements:
+      - REQ-002
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/org-relations/{relationId}:
+    put:
+      operationId: updateOrganizationRelation
+      summary: 조직 관계 저장
+      x-related-requirements:
+      - REQ-002
+      x-business-rules:
+      - REQ-002 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateOrganizationRelation 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-002 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''조직 관계 저장 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateOrganizationRelation와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/roles:
+    get:
+      operationId: listRoles
+      summary: 역할 목록 조회
+      x-related-requirements:
+      - REQ-003
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/roles/{roleCode}:
+    put:
+      operationId: updateRole
+      summary: 역할 기준 저장
+      x-related-requirements:
+      - REQ-003
+      x-business-rules:
+      - REQ-003 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateRole 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-003 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''역할 기준 저장 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateRole와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/user-roles:
+    get:
+      operationId: listUserRoles
+      summary: 사용자 역할 조회
+      x-related-requirements:
+      - REQ-004
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: grantUserRole
+      summary: 사용자 역할 부여
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - REQ-004 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 grantUserRole 처리 전후 값을 기록한다
+      x-state-transitions:
+      - user_role.status: ACTIVE/REVOKED/EXPIRED 중 요청 결과 상태로 변경
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-004 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''사용자 역할 부여 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId grantUserRole와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/user-roles/{assignmentId}:
+    patch:
+      operationId: updateUserRole
+      summary: 사용자 역할 변경
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - REQ-004 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateUserRole 처리 전후 값을 기록한다
+      x-state-transitions:
+      - user_role.status: ACTIVE/REVOKED/EXPIRED 중 요청 결과 상태로 변경
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-004 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''사용자 역할 변경 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateUserRole와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    delete:
+      operationId: revokeUserRole
+      summary: 사용자 역할 회수
+      x-related-requirements:
+      - REQ-004
+      x-business-rules:
+      - REQ-004 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 revokeUserRole 처리 전후 값을 기록한다
+      x-state-transitions:
+      - user_role.status: ACTIVE/REVOKED/EXPIRED 중 요청 결과 상태로 변경
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-004 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''사용자 역할 회수 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId revokeUserRole와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menu-permissions:
+    get:
+      operationId: listMenuPermissions
+      summary: 메뉴 권한 조회
+      x-related-requirements:
+      - REQ-005
+      - REQ-037
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      operationId: saveMenuPermissions
+      summary: 메뉴 권한 저장
+      x-related-requirements:
+      - REQ-005
+      - REQ-017
+      - REQ-018
+      x-business-rules:
+      - REQ-005 요구의 필수 식별자와 권한을 서버에서 검증한다
+      - REQ-017 요구의 필수 식별자와 권한을 서버에서 검증한다
+      - REQ-018 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 saveMenuPermissions 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-005 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''메뉴 권한 저장 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId saveMenuPermissions와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus/tree:
+    get:
+      operationId: getMenuTree
+      summary: 메뉴 구조 조회
+      x-related-requirements:
+      - REQ-006
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus/{menuId}/structure:
+    put:
+      operationId: updateMenuStructure
+      summary: 메뉴 부모 저장
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - REQ-006 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateMenuStructure 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-006 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''메뉴 부모 저장 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateMenuStructure와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus/reorder:
+    put:
+      operationId: reorderMenus
+      summary: 메뉴 순서 재정렬
+      x-related-requirements:
+      - REQ-006
+      x-business-rules:
+      - REQ-006 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 reorderMenus 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-006 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''메뉴 순서 재정렬 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId reorderMenus와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus:
+    get:
+      operationId: listMenus
+      summary: 메뉴 실행정보 조회
+      x-related-requirements:
+      - REQ-007
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createMenu
+      summary: 메뉴 실행정보 등록
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - REQ-007 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 createMenu 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-007 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''메뉴 실행정보 등록 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId createMenu와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/menus/{menuId}:
+    put:
+      operationId: updateMenu
+      summary: 메뉴 실행정보 수정
+      x-related-requirements:
+      - REQ-007
+      x-business-rules:
+      - REQ-007 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateMenu 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-007 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''메뉴 실행정보 수정 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateMenu와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups:
+    get:
+      operationId: listCodeGroups
+      summary: 코드그룹 조회
+      x-related-requirements:
+      - REQ-008
+      - REQ-026
+      - REQ-042
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createCodeGroup
+      summary: 코드그룹 등록
+      x-related-requirements:
+      - REQ-008
+      - REQ-022
+      x-business-rules:
+      - REQ-008 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 createCodeGroup 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-008 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''코드그룹 등록 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId createCodeGroup와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups/{groupId}:
+    put:
+      operationId: updateCodeGroup
+      summary: 코드그룹 수정
+      x-related-requirements:
+      - REQ-008
+      x-business-rules:
+      - REQ-008 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateCodeGroup 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-008 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''코드그룹 수정 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateCodeGroup와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups/{groupId}/codes:
+    get:
+      operationId: listCodeDetails
+      summary: 상세코드 조회
+      x-related-requirements:
+      - REQ-009
+      parameters:
+      - $ref: '#/components/parameters/PageParam'
+      - $ref: '#/components/parameters/SizeParam'
+      - $ref: '#/components/parameters/SortParam'
+      - $ref: '#/components/parameters/QueryParam'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    post:
+      operationId: createCodeDetail
+      summary: 상세코드 등록
+      x-related-requirements:
+      - REQ-009
+      x-business-rules:
+      - REQ-009 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 createCodeDetail 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-009 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''상세코드 등록 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId createCodeDetail와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/admin/code-groups/{groupId}/codes/{codeValue}:
+    put:
+      operationId: updateCodeDetail
+      summary: 상세코드 수정
+      x-related-requirements:
+      - REQ-009
+      - REQ-019
+      - REQ-020
+      x-business-rules:
+      - REQ-009 요구의 필수 식별자와 권한을 서버에서 검증한다
+      x-side-effects:
+      - 관련 도메인 테이블 변경 내용을 저장하고 change_history에 updateCodeDetail 처리 전후 값을 기록한다
+      x-required-tests:
+      - '{''happy'': ''유효한 요청 -> 후속 조회에서 REQ-009 관련 테이블 필드가 변경되어 보인다''}'
+      - '{''auth'': ''R01 세션으로 요청 -> 403 ApiResponse<ApiError>를 반환한다''}'
+      - '{''validation'': ''필수 식별자 누락 -> 해당 필드명이 포함된 ApiError.errors를 반환한다''}'
+      - '{''business'': ''상세코드 수정 도메인 불변식 위반 -> 대상 레코드 상태가 변경되지 않는다''}'
+      - '{''side-effect'': ''성공 후 change_history에 operationId updateCodeDetail와 actor_id가 기록된다''}'
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: KNUESESSION
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+      required: false
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+      required: false
+    SortParam:
+      name: sort
+      in: query
+      schema:
+        type: string
+      required: false
+    QueryParam:
+      name: q
+      in: query
+      schema:
+        type: string
+      required: false
+  schemas:
+    ApiResponse:
+      type: object
+      required:
+      - success
+      properties:
+        success:
+          type: boolean
+        data:
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ApiError'
+    ApiError:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              reason:
+                type: string
+    UseYn:
+      type: string
+      enum:
+      - Y
+      - N
+    AccountStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - REVOKED
+    OrgType:
+      type: string
+      enum:
+      - UNIVERSITY
+      - GRADUATE_SCHOOL
+      - COLLEGE
+      - DEPARTMENT
+      - OFFICE
+    RoleCode:
+      type: string
+      enum:
+      - R01
+      - R02
+      - R03
+      - R04
+      - R05
+      - R06
+      - R07
+      - R08
+      - R09
+    AssignmentType:
+      type: string
+      enum:
+      - POSITION_BASED
+      - MANUAL
+    UserRoleStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - REVOKED
+      - EXPIRED
+    MenuType:
+      type: string
+      enum:
+      - TOP
+      - MIDDLE
+      - SCREEN
+    PermissionTargetType:
+      type: string
+      enum:
+      - ROLE
+      - ORG
+      - USER
+x-uncovered-requirements:
+- canonical_id: REQ-010
+  status: non-functional
+  evidence: backend_dir/frontend_dir/compose_file 산출물 요구라 단일 OpenAPI operation으로 표현하지 않는다.
+- canonical_id: REQ-012
+  status: data-constraint
+  evidence: 로컬 DB 관리 범위는 data-model table 제약이며 updateUserAccount 등 mapped operation의 저장소 조건이다.
+- canonical_id: REQ-013
+  status: out-of-scope
+  evidence: 1차 범위 밖 업무 API는 paths에 추가하지 않는 out-of-scope 결정이다.
+- canonical_id: REQ-014
+  status: non-functional
+  evidence: 로컬 Docker Compose 실행성은 infra/docker-compose.yml 검증 대상이다.
+- canonical_id: REQ-015
+  status: non-functional
+  evidence: AuthenticationPort와 PersonnelInformationPort 교체성은 architecture port boundary 조건이다.
+- canonical_id: REQ-025
+  status: data-constraint
+  evidence: 도메인 테이블 분리는 data-model/Flyway schema 책임이며 단일 endpoint가 아니다.
+- canonical_id: REQ-032
+  status: non-functional
+  evidence: Java/Spring/MyBatis backend stack 고정은 기술 제약이다.
+- canonical_id: REQ-033
+  status: non-functional
+  evidence: React/TypeScript/Vite frontend stack 고정은 UI 구현 제약이다.
+- canonical_id: REQ-034
+  status: non-functional
+  evidence: backend/frontend/database Compose 구성은 infrastructure 산출물 제약이다.
+- canonical_id: REQ-035
+  status: non-functional
+  evidence: Adapter 기반 업무 확장은 port 설계 조건이며 1차 업무 endpoint가 아니다.
+- canonical_id: REQ-038
+  status: non-functional
+  evidence: Compose 서비스 실행은 Docker Compose acceptance이며 HTTP operation 자체가 아니다.
+- canonical_id: REQ-041
+  status: non-functional
+  evidence: Compose 산출물 포함은 delivery artifact 조건이다.
+- canonical_id: REQ-043
+  status: non-functional
+  evidence: quickstart 실행 문서 포함은 documentation delivery 조건이다.
+- canonical_id: REQ-045
+  status: non-functional
+  evidence: 신규생성 기술스택 고정은 stack contract 제약이다.
+- canonical_id: REQ-046
+  status: non-functional
+  evidence: execution-persistence marker 보존과 clarification_required handoff 차단은 plan.md SSOT 결정이다.
+- canonical_id: REQ-048
+  status: screen-only
+  evidence: 레퍼런스 디자인 적용은 ui-design.md screen-only 계약이다.
