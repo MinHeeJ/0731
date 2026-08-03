@@ -5,6 +5,7 @@ import kr.ac.knue.cms.common.AdminMapper;
 import kr.ac.knue.cms.common.ApiResponse;
 import kr.ac.knue.cms.common.BusinessException;
 import kr.ac.knue.cms.common.ChangeHistoryService;
+import kr.ac.knue.cms.common.SearchFilterValidator;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 public class UserRoleController {
@@ -30,6 +32,7 @@ public class UserRoleController {
 
     @GetMapping("/api/user-roles")
     public ApiResponse<List<Map<String, Object>>> list(@RequestParam Map<String, Object> filters) {
+        SearchFilterValidator.requireOneOf(filters, "status", Set.of("ACTIVE", "REVOKED", "EXPIRED"));
         return ApiResponse.ok(mapper.listUserRoles(filters));
     }
 

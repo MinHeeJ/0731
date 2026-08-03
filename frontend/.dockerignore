@@ -4,4 +4,6 @@ dist
 build
 coverage
 .git
+.vite
+.cache
 *.log

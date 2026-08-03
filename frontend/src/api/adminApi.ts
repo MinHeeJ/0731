@@ -83,8 +83,8 @@ export const listMenus = (filters: Record<string, string> = {}) =>
   api<Record<string, unknown>[]>(`/api/menus${qs(filters)}`);
 export const listMyMenus = () =>
   api<Record<string, unknown>[]>("/api/menus/my");
-export const listMenuTree = () =>
-  api<Record<string, unknown>[]>("/api/menus/tree");
+export const listMenuTree = (filters: Record<string, string> = {}) =>
+  api<Record<string, unknown>[]>(`/api/menus/tree${qs(filters)}`);
 export const createMenu = (body: Record<string, unknown>) =>
   api<Record<string, unknown>[]>("/api/menus", {
     method: "POST",
@@ -132,11 +132,19 @@ export const updateCodeGroup = (
     method: "PUT",
     body: JSON.stringify(body),
   });
-export const listDetailCodes = (groupId: string) =>
-  api<Record<string, unknown>[]>(`/api/code-groups/${groupId}/detail-codes`);
-export const listDetailCodeTree = (groupId: string) =>
+export const listDetailCodes = (
+  groupId: string,
+  filters: Record<string, string> = {},
+) =>
   api<Record<string, unknown>[]>(
-    `/api/code-groups/${groupId}/detail-codes/tree`,
+    `/api/code-groups/${groupId}/detail-codes${qs(filters)}`,
+  );
+export const listDetailCodeTree = (
+  groupId: string,
+  filters: Record<string, string> = {},
+) =>
+  api<Record<string, unknown>[]>(
+    `/api/code-groups/${groupId}/detail-codes/tree${qs(filters)}`,
   );
 export const createDetailCode = (
   groupId: string,

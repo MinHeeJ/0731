@@ -481,7 +481,7 @@ class ApiOperationStaticInventoryTest {
 
     @Test
     void post_api_code_groups_detail_codes_creates_detail_and_records_history() throws Exception {
-        when(adminMapper.listDetailCodes("CG100")).thenReturn(List.of(Map.<String, Object>of("groupId", "CG100", "codeValue", "D100", "codeName", "상세")));
+        when(adminMapper.listDetailCodes(eq("CG100"), anyMap())).thenReturn(List.of(Map.<String, Object>of("groupId", "CG100", "codeValue", "D100", "codeName", "상세")));
         mvc.perform(post("/api/code-groups/CG100/detail-codes").contentType("application/json").content("{\"codeValue\":\"D100\",\"codeName\":\"상세\",\"changeReason\":\"등록\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].codeValue").value("D100"));
@@ -501,7 +501,7 @@ class ApiOperationStaticInventoryTest {
     @Test
     void put_api_code_groups_detail_codes_updates_detail_and_records_history() throws Exception {
         when(adminMapper.updateDetailCode(eq("CG100"), eq("D100"), anyMap())).thenReturn(1);
-        when(adminMapper.listDetailCodes("CG100")).thenReturn(List.of(Map.<String, Object>of("groupId", "CG100", "codeValue", "D100", "codeName", "상세수정")));
+        when(adminMapper.listDetailCodes(eq("CG100"), anyMap())).thenReturn(List.of(Map.<String, Object>of("groupId", "CG100", "codeValue", "D100", "codeName", "상세수정")));
         mvc.perform(put("/api/code-groups/CG100/detail-codes/D100").contentType("application/json").content("{\"codeName\":\"상세수정\",\"changeReason\":\"수정\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data[0].codeName").value("상세수정"));
