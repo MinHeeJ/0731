@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.cms.user.UserMapper">
+  <sql id="userColumns">u.user_id AS "userId", u.login_id AS "loginId", u.display_name AS "displayName", u.use_yn AS "useYn", u.status, k.staff_no AS "staffNo", k.staff_name AS "staffName", k.organization_code AS "organizationCode", o.organization_name AS "organizationName", k.position_name AS "positionName", k.job_title AS "jobTitle", k.employment_status AS "employmentStatus", k.retirement_date AS "retirementDate", k.last_synced_at AS "lastSyncedAt", COALESCE(string_agg(DISTINCT ur.role_code, ','), '') AS "roleCodes"</sql>
+  <select id="listUsers" resultType="map">
+    SELECT <include refid="userColumns"/> FROM user_account u LEFT JOIN korus_staff_snapshot k ON k.staff_no = u.staff_no LEFT JOIN organization o ON o.organization_code = k.organization_code LEFT JOIN user_role ur ON ur.user_id = u.user_id AND ur.status='ACTIVE' AND ur.use_yn='Y'
+    <where>
+      u.deleted_at IS NULL
+      <if test="f.staffNo != null and f.staffNo != ''">AND k.staff_no LIKE CONCAT('%', #{f.staffNo}, '%')</if>
+      <if test="f.name != null and f.name != ''">AND k.staff_name LIKE CONCAT('%', #{f.name}, '%')</if>
+      <if test="f.organizationCode != null and f.organizationCode != ''">AND k.organization_code = #{f.organizationCode}</if>
+      <if test="f.position != null and f.position != ''">AND k.job_title = #{f.position}</if>
+      <if test="f.employmentStatus != null and f.employmentStatus != ''">AND k.employment_status = #{f.employmentStatus}</if>
+      <if test="f.useYn != null and f.useYn != ''">AND u.use_yn = #{f.useYn}</if>
+      <if test="f.roleCode != null and f.roleCode != ''">AND EXISTS (SELECT 1 FROM user_role rx WHERE rx.user_id=u.user_id AND rx.role_code=#{f.roleCode} AND rx.status='ACTIVE' AND rx.use_yn='Y')</if>
+    </where>
+    GROUP BY u.user_id, u.login_id, u.display_name, u.use_yn, u.status, k.staff_no, k.staff_name, k.organization_code, o.organization_name, k.position_name, k.job_title, k.employment_status, k.retirement_date, k.last_synced_at ORDER BY k.staff_no ASC
+  </select>
+  <select id="findUser" resultType="map">SELECT <include refid="userColumns"/> FROM user_account u LEFT JOIN korus_staff_snapshot k ON k.staff_no=u.staff_no LEFT JOIN organization o ON o.organization_code=k.organization_code LEFT JOIN user_role ur ON ur.user_id=u.user_id AND ur.status='ACTIVE' AND ur.use_yn='Y' WHERE u.user_id=#{userId} GROUP BY u.user_id,u.login_id,u.display_name,u.use_yn,u.status,k.staff_no,k.staff_name,k.organization_code,o.organization_name,k.position_name,k.job_title,k.employment_status,k.retirement_date,k.last_synced_at</select>
+  <update id="updateUsage">UPDATE user_account SET use_yn=#{useYn}, change_reason=#{reason}, updated_at=now() WHERE user_id=#{userId}</update>
+  <update id="revokeManualRoles">UPDATE user_role SET status='REVOKED', use_yn='N', updated_at=now() WHERE user_id=#{userId} AND assignment_type='MANUAL' AND status='ACTIVE'</update>
+  <insert id="insertManualRole">INSERT INTO user_role (user_id, role_code, assignment_type, approved_by, effective_start_date, status, use_yn, created_at, updated_at) VALUES (#{userId}, #{roleCode}, 'MANUAL', #{approvedBy}, CURRENT_DATE, 'ACTIVE', 'Y', now(), now())</insert>
+  <select id="countRole" resultType="int">SELECT count(*) FROM role WHERE role_code=#{roleCode} AND deleted_at IS NULL</select>
+  <select id="listOrganizations" resultType="map">SELECT o.organization_code AS "organizationCode", o.organization_name AS "organizationName", o.organization_type AS "organizationType", o.source_system AS "sourceSystem", o.use_yn AS "useYn", o.status FROM organization o <where><if test="f.organizationCode != null and f.organizationCode != ''">o.organization_code=#{f.organizationCode}</if></where> ORDER BY o.organization_code</select>
+  <select id="listOrganizationRelations" resultType="map">SELECT relation_id AS "relationId", organization_code AS "organizationCode", parent_organization_code AS "parentOrganizationCode", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, created_at AS "createdAt" FROM organization_relation WHERE organization_code=#{organizationCode} ORDER BY effective_start_date DESC</select>
+  <insert id="insertOrganizationRelation">INSERT INTO organization_relation (organization_code, parent_organization_code, effective_start_date, effective_end_date, status, change_reason, created_at, updated_at) VALUES (#{organizationCode}, #{parentOrganizationCode}, #{startDate}::date, NULLIF(#{endDate}, '')::date, 'ACTIVE', #{reason}, now(), now())</insert>
+</mapper>
