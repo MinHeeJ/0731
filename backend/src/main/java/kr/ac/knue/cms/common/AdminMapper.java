@@ -25,7 +25,7 @@ public interface AdminMapper {
     List<Map<String,Object>> listCodeGroups(@Param("f") Map<String,Object> filters);
     void createCodeGroup(@Param("body") Map<String,Object> body);
     int updateCodeGroup(@Param("groupId") String groupId, @Param("body") Map<String,Object> body);
-    List<Map<String,Object>> listDetailCodes(@Param("groupId") String groupId);
+    List<Map<String,Object>> listDetailCodes(@Param("groupId") String groupId, @Param("f") Map<String,Object> filters);
     void createDetailCode(@Param("groupId") String groupId, @Param("body") Map<String,Object> body);
     int updateDetailCode(@Param("groupId") String groupId, @Param("codeValue") String codeValue, @Param("body") Map<String,Object> body);
 }

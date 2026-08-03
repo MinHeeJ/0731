@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -71,6 +72,71 @@ class ApiOperationContractCoverageTest {
     @MockBean ChangeHistoryService changeHistoryService;
     @MockBean MyMenuService myMenuService;
     @MockBean AuthorizationService authorizationService;
+
+    @Test
+    void get_management_search_apis_forward_every_visible_filter_to_mapper() throws Exception {
+        when(adminMapper.listRoles(anyMap())).thenReturn(List.of(Map.<String, Object>of("roleCode", "R09", "roleName", "시스템관리자")));
+        when(adminMapper.listUserRoles(anyMap())).thenReturn(List.of(Map.<String, Object>of("assignmentId", 10, "userId", "U10002", "roleCode", "R09", "status", "ACTIVE")));
+        when(adminMapper.listMenus(anyMap())).thenReturn(List.of(Map.<String, Object>of("menuId", "MENU-SYSTEM", "menuName", "시스템관리", "screenId", "SCR-MENU-INFO", "url", "/system/menus", "businessCategory", "시스템")));
+        when(adminMapper.listMenuPermissions(anyMap())).thenReturn(List.of(Map.<String, Object>of("targetType", "ROLE", "targetId", "R09", "menuId", "MENU-SYSTEM")));
+        when(adminMapper.listCodeGroups(anyMap())).thenReturn(List.of(Map.<String, Object>of("groupId", "EVAL", "groupName", "평가영역", "managingDepartment", "교무처", "status", "ACTIVE")));
+        when(adminMapper.listDetailCodes(eq("EVAL"), anyMap())).thenReturn(List.of(Map.<String, Object>of("groupId", "EVAL", "codeValue", "TEACHING", "status", "ACTIVE")));
+
+        mvc.perform(get("/api/roles?roleCode=R09&roleName=시스템"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].roleName").value("시스템관리자"));
+        verify(adminMapper).listRoles(argThat(filters -> "R09".equals(filters.get("roleCode")) && "시스템".equals(filters.get("roleName"))));
+
+        mvc.perform(get("/api/user-roles?userId=U10002&roleCode=R09&status=ACTIVE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
+        verify(adminMapper).listUserRoles(argThat(filters -> "U10002".equals(filters.get("userId")) && "R09".equals(filters.get("roleCode")) && "ACTIVE".equals(filters.get("status"))));
+
+        mvc.perform(get("/api/menu-permissions?targetType=ROLE&targetId=R09"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].targetId").value("R09"));
+        verify(adminMapper).listMenuPermissions(argThat(filters -> "ROLE".equals(filters.get("targetType")) && "R09".equals(filters.get("targetId"))));
+
+        mvc.perform(get("/api/menus/tree?menuName=시스템&menuId=MENU"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].menuId").value("MENU-SYSTEM"));
+        verify(adminMapper).listMenus(argThat(filters -> "시스템".equals(filters.get("menuName")) && "MENU".equals(filters.get("menuId"))));
+
+        mvc.perform(get("/api/menus?screenId=SCR-MENU-INFO&url=/system&businessCategory=시스템"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].screenId").value("SCR-MENU-INFO"));
+        verify(adminMapper).listMenus(argThat(filters -> "SCR-MENU-INFO".equals(filters.get("screenId")) && "/system".equals(filters.get("url")) && "시스템".equals(filters.get("businessCategory"))));
+
+        mvc.perform(get("/api/code-groups?groupName=평가&managingDepartment=교무&status=ACTIVE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].status").value("ACTIVE"));
+        verify(adminMapper).listCodeGroups(argThat(filters -> "평가".equals(filters.get("groupName")) && "교무".equals(filters.get("managingDepartment")) && "ACTIVE".equals(filters.get("status"))));
+
+        mvc.perform(get("/api/code-groups/EVAL/detail-codes?codeValue=TEACHING&status=ACTIVE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].codeValue").value("TEACHING"));
+        verify(adminMapper).listDetailCodes(eq("EVAL"), argThat(filters -> "TEACHING".equals(filters.get("codeValue")) && "ACTIVE".equals(filters.get("status"))));
+    }
+
+    @Test
+    void get_management_search_apis_reject_invalid_enum_filters_before_mapper_access() throws Exception {
+        mvc.perform(get("/api/user-roles?status=UNKNOWN"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.fields.status").exists());
+        mvc.perform(get("/api/menu-permissions?targetType=GROUP"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.fields.targetType").exists());
+        mvc.perform(get("/api/code-groups?status=DELETED"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.fields.status").exists());
+        mvc.perform(get("/api/code-groups/EVAL/detail-codes?status=DELETED"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.fields.status").exists());
+        verify(adminMapper, never()).listUserRoles(anyMap());
+        verify(adminMapper, never()).listMenuPermissions(anyMap());
+        verify(adminMapper, never()).listCodeGroups(anyMap());
+        verify(adminMapper, never()).listDetailCodes(anyString(), anyMap());
+    }
 
     @Test
     void openapi_fixture_is_loaded_from_classpath_contracts() throws Exception {
@@ -276,7 +342,7 @@ class ApiOperationContractCoverageTest {
     @Test
     void code_group_and_detail_code_operations_cover_tree_create_update_side_effects() throws Exception {
         when(adminMapper.listCodeGroups(anyMap())).thenReturn(List.of(Map.of("groupId", "CG100", "groupName", "공통코드")));
-        when(adminMapper.listDetailCodes("CG100")).thenReturn(List.of(Map.of("groupId", "CG100", "codeValue", "D100", "codeName", "상세")));
+        when(adminMapper.listDetailCodes(eq("CG100"), anyMap())).thenReturn(List.of(Map.of("groupId", "CG100", "codeValue", "D100", "codeName", "상세")));
         when(adminMapper.updateCodeGroup(eq("CG100"), anyMap())).thenReturn(1);
         when(adminMapper.updateDetailCode(eq("CG100"), eq("D100"), anyMap())).thenReturn(1);
         mvc.perform(get("/api/code-groups?groupId=CG100"))

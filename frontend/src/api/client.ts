@@ -29,7 +29,8 @@ export async function api<T>(
 export const qs = (params: Record<string, string>) => {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
-    if (v) q.set(k, v);
+    const value = v.trim();
+    if (value) q.set(k, value);
   });
   return q.toString() ? `?${q}` : "";
 };

@@ -388,6 +388,14 @@ const configs: Record<string, Config> = {
   },
 };
 
+function optionsFor(type: keyof typeof configs, field: string) {
+  if (field !== "status") return selectOptions[field];
+  if (type === "user-roles") return ["ACTIVE", "REVOKED", "EXPIRED"];
+  if (type === "code-groups" || type === "detail-codes")
+    return ["ACTIVE", "INACTIVE"];
+  return selectOptions[field];
+}
+
 function isPermission(message: string) {
   return (
     message.includes("권한") ||
@@ -628,33 +636,36 @@ export function ManagementPage({ type }: { type: keyof typeof configs }) {
           </button>
         </div>
         <div className="form-grid compact">
-          {cfg.filters.map((field) => (
-            <label className="field" key={field}>
-              <span>{labels[field] || field}</span>
-              {selectOptions[field] ? (
-                <select
-                  value={filters[field] || ""}
-                  onChange={(e) =>
-                    setFilters({ ...filters, [field]: e.target.value })
-                  }
-                >
-                  <option value="">전체</option>
-                  {selectOptions[field].map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={filters[field] || ""}
-                  onChange={(e) =>
-                    setFilters({ ...filters, [field]: e.target.value })
-                  }
-                />
-              )}
-            </label>
-          ))}
+          {cfg.filters.map((field) => {
+            const options = optionsFor(type, field);
+            return (
+              <label className="field" key={field}>
+                <span>{labels[field] || field}</span>
+                {options ? (
+                  <select
+                    value={filters[field] || ""}
+                    onChange={(e) =>
+                      setFilters({ ...filters, [field]: e.target.value })
+                    }
+                  >
+                    <option value="">전체</option>
+                    {options.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={filters[field] || ""}
+                    onChange={(e) =>
+                      setFilters({ ...filters, [field]: e.target.value })
+                    }
+                  />
+                )}
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -753,13 +764,14 @@ export function ManagementPage({ type }: { type: keyof typeof configs }) {
             const readonly =
               cfg.readonly?.includes(field) ||
               (selected?.[cfg.primary] && cfg.identity?.includes(field));
+            const options = optionsFor(type, field);
             return (
               <label className="field" key={field}>
                 <span>
                   {labels[field] || field}
                   {readonly ? " (readonly)" : ""}
                 </span>
-                {selectOptions[field] && !readonly ? (
+                {options && !readonly ? (
                   <select
                     value={form[field] || ""}
                     onChange={(e) =>
@@ -767,7 +779,7 @@ export function ManagementPage({ type }: { type: keyof typeof configs }) {
                     }
                   >
                     <option value="">선택</option>
-                    {selectOptions[field].map((option) => (
+                    {options.map((option) => (
                       <option key={option} value={option}>
                         {option}
                       </option>

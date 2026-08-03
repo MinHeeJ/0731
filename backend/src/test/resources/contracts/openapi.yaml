@@ -578,6 +578,7 @@ paths:
       x-related-requirements:
       - REQ-003
       - REQ-027
+      - CMS1368-REQ-001
       responses:
         '200':
           description: 조회 성공
@@ -606,34 +607,27 @@ paths:
       security:
       - sessionCookie: []
       parameters: &id004
-      - *id001
-      - *id002
-      - *id003
-      - name: groupId
-        in: path
-        required: true
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+      - name: roleCode
+        in: query
+        required: false
         schema:
           type: string
-      - name: page
+        description: role.role_code 정확 또는 부분 검색 조건
+      - name: roleName
         in: query
         required: false
         schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
+          type: string
+        description: role.role_name LIKE 검색 조건
       - name: filter
         in: query
         required: false
         schema:
           type: string
+        description: 공통 키워드 보조 검색 조건
       x-roles:
       - authenticated
     post:
@@ -762,6 +756,7 @@ paths:
       x-related-requirements:
       - REQ-004
       - REQ-027
+      - CMS1368-REQ-002
       responses:
         '200':
           description: 조회 성공
@@ -789,7 +784,34 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
       security:
       - sessionCookie: []
-      parameters: *id004
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+      - name: userId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: user_role.user_id 정확 검색 조건
+      - name: roleCode
+        in: query
+        required: false
+        schema:
+          type: string
+        description: user_role.role_code 검색 조건
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/UserRoleStatus'
+        description: user_role.status 정확 검색 조건
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 공통 키워드 보조 검색 조건
       x-roles:
       - authenticated
     post:
@@ -1045,6 +1067,7 @@ paths:
       x-related-requirements:
       - REQ-006
       - REQ-027
+      - CMS1368-REQ-004
       responses:
         '200':
           description: 조회 성공
@@ -1076,6 +1099,18 @@ paths:
       - *id005
       - *id006
       - *id007
+      - name: menuName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.menu_name LIKE tree 필터
+      - name: menuId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.menu_id 정확 또는 부분 tree 필터
       x-roles:
       - authenticated
   /api/menus/{menuId}/parent:
@@ -1204,6 +1239,7 @@ paths:
       x-related-requirements:
       - REQ-007
       - REQ-027
+      - CMS1368-REQ-005
       responses:
         '200':
           description: 조회 성공
@@ -1231,7 +1267,40 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
       security:
       - sessionCookie: []
-      parameters: *id004
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+      - name: menuName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.menu_name LIKE 검색 조건
+      - name: screenId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.screen_id 검색 조건
+      - name: url
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.url LIKE 검색 조건
+      - name: businessCategory
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu.business_category 검색 조건
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 공통 키워드 보조 검색 조건
       x-roles:
       - authenticated
     post:
@@ -1361,6 +1430,7 @@ paths:
       x-related-requirements:
       - REQ-005
       - REQ-027
+      - CMS1368-REQ-003
       responses:
         '200':
           description: 조회 성공
@@ -1396,6 +1466,12 @@ paths:
         in: query
         schema:
           $ref: '#/components/schemas/PermissionTargetType'
+      - name: targetId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: menu_permission.target_id 정확 검색 조건
       - name: page
         in: query
         required: false
@@ -1482,6 +1558,7 @@ paths:
       x-related-requirements:
       - REQ-008
       - REQ-027
+      - CMS1368-REQ-006
       responses:
         '200':
           description: 조회 성공
@@ -1509,7 +1586,40 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
       security:
       - sessionCookie: []
-      parameters: *id004
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+      - name: groupId
+        in: query
+        required: false
+        schema:
+          type: string
+        description: code_group.group_id 검색 조건
+      - name: groupName
+        in: query
+        required: false
+        schema:
+          type: string
+        description: code_group.group_name LIKE 검색 조건
+      - name: managingDepartment
+        in: query
+        required: false
+        schema:
+          type: string
+        description: code_group.managing_department LIKE 검색 조건
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/CodeGroupStatus'
+        description: code_group.status 정확 검색 조건
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 공통 키워드 보조 검색 조건
       x-roles:
       - authenticated
     post:
@@ -1640,6 +1750,7 @@ paths:
       - REQ-009
       - REQ-018
       - REQ-027
+      - CMS1368-REQ-007
       responses:
         '200':
           description: 조회 성공
@@ -1667,7 +1778,33 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
       security:
       - sessionCookie: []
-      parameters: *id004
+      parameters:
+      - name: groupId
+        in: path
+        required: true
+        schema:
+          type: string
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+      - name: codeValue
+        in: query
+        required: false
+        schema:
+          type: string
+        description: detail_code.code_value 검색 조건
+      - name: status
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/DetailCodeStatus'
+        description: detail_code.status 정확 검색 조건
+      - name: filter
+        in: query
+        required: false
+        schema:
+          type: string
+        description: 공통 키워드 보조 검색 조건
       x-roles:
       - authenticated
     post:
@@ -2315,3 +2452,25 @@ x-requirement-accounting:
 - canonical_id: REQ-050
   status: non-functional
   evidence: backend API와 frontend 화면 통합 검증은 quickstart smoke 대상이다.
+x-cms1368-requirement-accounting:
+- canonical_id: CMS1368-REQ-001
+  status: covered
+  evidence: operation listRoles filters roleCode and roleName
+- canonical_id: CMS1368-REQ-002
+  status: covered
+  evidence: operation listUserRoles filters userId, roleCode, and status
+- canonical_id: CMS1368-REQ-003
+  status: covered
+  evidence: operation listMenuPermissions preserves targetType and targetId filters
+- canonical_id: CMS1368-REQ-004
+  status: covered
+  evidence: operation getMenuTree accepts menuName and menuId filters
+- canonical_id: CMS1368-REQ-005
+  status: covered
+  evidence: operation listMenus filters menuName, screenId, url, and businessCategory
+- canonical_id: CMS1368-REQ-006
+  status: covered
+  evidence: operation listCodeGroups filters groupId, groupName, managingDepartment, and status
+- canonical_id: CMS1368-REQ-007
+  status: covered
+  evidence: operation listDetailCodes filters groupId, codeValue, and status

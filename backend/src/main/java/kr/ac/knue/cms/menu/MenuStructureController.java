@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -26,8 +27,8 @@ public class MenuStructureController {
     }
 
     @GetMapping("/api/menus/tree")
-    public ApiResponse<List<Map<String, Object>>> tree() {
-        return ApiResponse.ok(mapper.listMenus(Map.of()));
+    public ApiResponse<List<Map<String, Object>>> tree(@RequestParam Map<String, Object> filters) {
+        return ApiResponse.ok(mapper.listMenus(filters));
     }
 
     @PutMapping("/api/menus/{menuId}/parent")

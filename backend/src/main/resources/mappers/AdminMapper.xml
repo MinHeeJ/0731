@@ -1,25 +1,98 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="kr.ac.knue.cms.common.AdminMapper">
-  <select id="listRoles" resultType="map">SELECT role_code AS "roleCode", role_name AS "roleName", purpose, assignment_criteria AS "assignmentCriteria", default_data_scope AS "defaultDataScope", use_yn AS "useYn" FROM role <where><if test="f.roleCode != null and f.roleCode != ''">role_code=#{f.roleCode}</if></where> ORDER BY role_code</select>
+  <select id="listRoles" resultType="map">
+    <bind name="roleCode" value="f.roleCode == null ? null : f.roleCode.toString().trim()" />
+    <bind name="roleName" value="f.roleName == null ? null : f.roleName.toString().trim()" />
+    SELECT role_code AS "roleCode", role_name AS "roleName", purpose, assignment_criteria AS "assignmentCriteria", default_data_scope AS "defaultDataScope", use_yn AS "useYn"
+    FROM role
+    <where>
+      <if test="roleCode != null and roleCode != ''">AND role_code=#{roleCode}</if>
+      <if test="roleName != null and roleName != ''">AND role_name LIKE CONCAT('%', #{roleName}, '%')</if>
+    </where>
+    ORDER BY role_code
+  </select>
   <insert id="createRole">INSERT INTO role (role_code, role_name, purpose, assignment_criteria, default_data_scope, use_yn, created_at, updated_at) VALUES (#{body.roleCode}, #{body.roleName}, #{body.purpose}, #{body.assignmentCriteria}, #{body.defaultDataScope}, COALESCE(#{body.useYn}, 'Y'), now(), now())</insert>
   <update id="updateRole">UPDATE role SET role_name=COALESCE(#{body.roleName}, role_name), purpose=COALESCE(#{body.purpose}, purpose), assignment_criteria=COALESCE(#{body.assignmentCriteria}, assignment_criteria), default_data_scope=COALESCE(#{body.defaultDataScope}, default_data_scope), use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now() WHERE role_code=#{roleCode}</update>
-  <select id="listUserRoles" resultType="map">SELECT assignment_id AS "assignmentId", user_id AS "userId", role_code AS "roleCode", assignment_type AS "assignmentType", approved_by AS "approvedBy", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, use_yn AS "useYn" FROM user_role <where><if test="f.userId != null and f.userId != ''">user_id=#{f.userId}</if><if test="f.roleCode != null and f.roleCode != ''">AND role_code=#{f.roleCode}</if></where> ORDER BY assignment_id</select>
+  <select id="listUserRoles" resultType="map">
+    <bind name="userId" value="f.userId == null ? null : f.userId.toString().trim()" />
+    <bind name="roleCode" value="f.roleCode == null ? null : f.roleCode.toString().trim()" />
+    <bind name="status" value="f.status == null ? null : f.status.toString().trim()" />
+    SELECT assignment_id AS "assignmentId", user_id AS "userId", role_code AS "roleCode", assignment_type AS "assignmentType", approved_by AS "approvedBy", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, use_yn AS "useYn"
+    FROM user_role
+    <where>
+      <if test="userId != null and userId != ''">AND user_id=#{userId}</if>
+      <if test="roleCode != null and roleCode != ''">AND role_code=#{roleCode}</if>
+      <if test="status != null and status != ''">AND status=#{status}</if>
+    </where>
+    ORDER BY assignment_id
+  </select>
   <insert id="grantUserRole">INSERT INTO user_role (user_id, role_code, assignment_type, approved_by, effective_start_date, effective_end_date, status, use_yn, created_at, updated_at) VALUES (#{body.userId}, #{body.roleCode}, 'MANUAL', #{approvedBy}, COALESCE(NULLIF(#{body.effectiveStartDate}, '')::date, CURRENT_DATE), NULLIF(#{body.effectiveEndDate}, '')::date, 'ACTIVE', 'Y', now(), now())</insert>
   <update id="updateUserRole">UPDATE user_role SET approved_by=COALESCE(#{body.approvedBy}, approved_by), effective_start_date=COALESCE(NULLIF(#{body.effectiveStartDate}, '')::date, effective_start_date), effective_end_date=NULLIF(#{body.effectiveEndDate}, '')::date, updated_at=now() WHERE assignment_id=#{assignmentId} AND assignment_type='MANUAL'</update>
   <update id="revokeUserRole">UPDATE user_role SET status='REVOKED', use_yn='N', updated_at=now() WHERE assignment_id=#{assignmentId} AND assignment_type='MANUAL'</update>
-  <select id="listMenus" resultType="map">SELECT menu_id AS "menuId", parent_menu_id AS "parentMenuId", menu_type AS "menuType", menu_name AS "menuName", screen_id AS "screenId", url, icon, business_category AS "businessCategory", description, display_order AS "displayOrder", use_yn AS "useYn" FROM menu <where><if test="f.menuName != null and f.menuName != ''">menu_name LIKE CONCAT('%', #{f.menuName}, '%')</if></where> ORDER BY COALESCE(parent_menu_id, ''), display_order</select>
+  <select id="listMenus" resultType="map">
+    <bind name="menuId" value="f.menuId == null ? null : f.menuId.toString().trim()" />
+    <bind name="menuName" value="f.menuName == null ? null : f.menuName.toString().trim()" />
+    <bind name="screenId" value="f.screenId == null ? null : f.screenId.toString().trim()" />
+    <bind name="url" value="f.url == null ? null : f.url.toString().trim()" />
+    <bind name="businessCategory" value="f.businessCategory == null ? null : f.businessCategory.toString().trim()" />
+    SELECT menu_id AS "menuId", parent_menu_id AS "parentMenuId", menu_type AS "menuType", menu_name AS "menuName", screen_id AS "screenId", url, icon, business_category AS "businessCategory", description, display_order AS "displayOrder", use_yn AS "useYn"
+    FROM menu
+    <where>
+      <if test="menuId != null and menuId != ''">AND menu_id LIKE CONCAT('%', #{menuId}, '%')</if>
+      <if test="menuName != null and menuName != ''">AND menu_name LIKE CONCAT('%', #{menuName}, '%')</if>
+      <if test="screenId != null and screenId != ''">AND screen_id=#{screenId}</if>
+      <if test="url != null and url != ''">AND url LIKE CONCAT('%', #{url}, '%')</if>
+      <if test="businessCategory != null and businessCategory != ''">AND business_category=#{businessCategory}</if>
+    </where>
+    ORDER BY COALESCE(parent_menu_id, ''), display_order
+  </select>
   <select id="listMyMenus" resultType="map">SELECT DISTINCT m.menu_id AS "menuId", m.parent_menu_id AS "parentMenuId", m.menu_type AS "menuType", m.menu_name AS "menuName", m.screen_id AS "screenId", m.url, m.icon, m.display_order AS "displayOrder" FROM menu m JOIN menu_permission p ON p.menu_id=m.menu_id JOIN user_role ur ON ur.role_code=p.target_id WHERE ur.user_id=#{userId} AND p.target_type='ROLE' AND p.decision='ALLOW' AND p.use_yn='Y' AND m.use_yn='Y' ORDER BY m.display_order</select>
   <update id="updateMenuParent">UPDATE menu SET parent_menu_id=#{parentMenuId}, updated_at=now() WHERE menu_id=#{menuId}</update>
   <update id="updateMenuOrder">UPDATE menu SET display_order=#{displayOrder}, updated_at=now() WHERE menu_id=#{menuId}</update>
   <insert id="createMenu">INSERT INTO menu (menu_id, parent_menu_id, menu_type, menu_name, screen_id, url, icon, business_category, description, display_order, use_yn, created_at, updated_at) VALUES (#{body.menuId}, #{body.parentMenuId}, COALESCE(#{body.menuType}, 'SCREEN'), #{body.menuName}, #{body.screenId}, #{body.url}, #{body.icon}, #{body.businessCategory}, #{body.description}, COALESCE(#{body.displayOrder}, 99), COALESCE(#{body.useYn}, 'Y'), now(), now())</insert>
   <update id="updateMenu">UPDATE menu SET menu_name=COALESCE(#{body.menuName}, menu_name), screen_id=COALESCE(#{body.screenId}, screen_id), url=COALESCE(#{body.url}, url), icon=COALESCE(#{body.icon}, icon), business_category=COALESCE(#{body.businessCategory}, business_category), description=COALESCE(#{body.description}, description), use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now() WHERE menu_id=#{menuId}</update>
-  <select id="listMenuPermissions" resultType="map">SELECT permission_id AS "permissionId", target_type AS "targetType", target_id AS "targetId", menu_id AS "menuId", decision, api_path_pattern AS "apiPathPattern", use_yn AS "useYn" FROM menu_permission <where><if test="f.targetType != null and f.targetType != ''">target_type=#{f.targetType}</if><if test="f.targetId != null and f.targetId != ''">AND target_id=#{f.targetId}</if></where> ORDER BY target_type, target_id, menu_id</select>
+  <select id="listMenuPermissions" resultType="map">
+    <bind name="targetType" value="f.targetType == null ? null : f.targetType.toString().trim()" />
+    <bind name="targetId" value="f.targetId == null ? null : f.targetId.toString().trim()" />
+    SELECT permission_id AS "permissionId", target_type AS "targetType", target_id AS "targetId", menu_id AS "menuId", decision, api_path_pattern AS "apiPathPattern", use_yn AS "useYn"
+    FROM menu_permission
+    <where>
+      <if test="targetType != null and targetType != ''">AND target_type=#{targetType}</if>
+      <if test="targetId != null and targetId != ''">AND target_id=#{targetId}</if>
+    </where>
+    ORDER BY target_type, target_id, menu_id
+  </select>
   <insert id="upsertMenuPermission">INSERT INTO menu_permission (target_type, target_id, menu_id, decision, api_path_pattern, use_yn, created_at, updated_at) VALUES (#{body.targetType}, #{body.targetId}, #{body.menuId}, #{body.decision}, #{body.apiPathPattern}, 'Y', now(), now()) ON CONFLICT (target_type, target_id, menu_id) DO UPDATE SET decision=EXCLUDED.decision, api_path_pattern=EXCLUDED.api_path_pattern, updated_at=now()</insert>
-  <select id="listCodeGroups" resultType="map">SELECT group_id AS "groupId", group_name AS "groupName", description, managing_department AS "managingDepartment", status, use_yn AS "useYn" FROM code_group <where><if test="f.groupId != null and f.groupId != ''">group_id=#{f.groupId}</if></where> ORDER BY group_id</select>
+  <select id="listCodeGroups" resultType="map">
+    <bind name="groupId" value="f.groupId == null ? null : f.groupId.toString().trim()" />
+    <bind name="groupName" value="f.groupName == null ? null : f.groupName.toString().trim()" />
+    <bind name="managingDepartment" value="f.managingDepartment == null ? null : f.managingDepartment.toString().trim()" />
+    <bind name="status" value="f.status == null ? null : f.status.toString().trim()" />
+    SELECT group_id AS "groupId", group_name AS "groupName", description, managing_department AS "managingDepartment", status, use_yn AS "useYn"
+    FROM code_group
+    <where>
+      <if test="groupId != null and groupId != ''">AND group_id=#{groupId}</if>
+      <if test="groupName != null and groupName != ''">AND group_name LIKE CONCAT('%', #{groupName}, '%')</if>
+      <if test="managingDepartment != null and managingDepartment != ''">AND managing_department LIKE CONCAT('%', #{managingDepartment}, '%')</if>
+      <if test="status != null and status != ''">AND status=#{status}</if>
+    </where>
+    ORDER BY group_id
+  </select>
   <insert id="createCodeGroup">INSERT INTO code_group (group_id, group_name, description, managing_department, status, use_yn, created_at, updated_at) VALUES (#{body.groupId}, #{body.groupName}, #{body.description}, #{body.managingDepartment}, COALESCE(#{body.status}, 'ACTIVE'), COALESCE(#{body.useYn}, 'Y'), now(), now())</insert>
   <update id="updateCodeGroup">UPDATE code_group SET group_name=COALESCE(#{body.groupName}, group_name), description=COALESCE(#{body.description}, description), managing_department=COALESCE(#{body.managingDepartment}, managing_department), status=COALESCE(#{body.status}, status), use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now() WHERE group_id=#{groupId}</update>
-  <select id="listDetailCodes" resultType="map">SELECT group_id AS "groupId", code_value AS "codeValue", code_name AS "codeName", parent_code_value AS "parentCodeValue", display_order AS "displayOrder", additional_attributes AS "additionalAttributes", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, use_yn AS "useYn" FROM detail_code WHERE group_id=#{groupId} ORDER BY display_order</select>
+  <select id="listDetailCodes" resultType="map">
+    <bind name="codeValueFilter" value="f.codeValue == null ? null : f.codeValue.toString().trim()" />
+    <bind name="statusFilter" value="f.status == null ? null : f.status.toString().trim()" />
+    SELECT group_id AS "groupId", code_value AS "codeValue", code_name AS "codeName", parent_code_value AS "parentCodeValue", display_order AS "displayOrder", additional_attributes AS "additionalAttributes", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, use_yn AS "useYn"
+    FROM detail_code
+    <where>
+      AND group_id=#{groupId}
+      <if test="codeValueFilter != null and codeValueFilter != ''">AND code_value=#{codeValueFilter}</if>
+      <if test="statusFilter != null and statusFilter != ''">AND status=#{statusFilter}</if>
+    </where>
+    ORDER BY display_order
+  </select>
   <insert id="createDetailCode">INSERT INTO detail_code (group_id, code_value, code_name, parent_code_value, display_order, additional_attributes, effective_start_date, effective_end_date, status, use_yn, created_at, updated_at) VALUES (#{groupId}, #{body.codeValue}, #{body.codeName}, #{body.parentCodeValue}, COALESCE(#{body.displayOrder}, 99), CAST(COALESCE(#{body.additionalAttributes}, '{}') AS jsonb), NULLIF(#{body.effectiveStartDate}, '')::date, NULLIF(#{body.effectiveEndDate}, '')::date, COALESCE(#{body.status}, 'ACTIVE'), COALESCE(#{body.useYn}, 'Y'), now(), now())</insert>
   <update id="updateDetailCode">UPDATE detail_code SET code_name=COALESCE(#{body.codeName}, code_name), parent_code_value=COALESCE(#{body.parentCodeValue}, parent_code_value), display_order=COALESCE(#{body.displayOrder}, display_order), status=COALESCE(#{body.status}, status), use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now() WHERE group_id=#{groupId} AND code_value=#{codeValue}</update>
 </mapper>
