@@ -1,0 +1,54 @@
+services:
+  database:
+    image: postgres:16.3-alpine
+    environment:
+      POSTGRES_DB: cms
+      POSTGRES_USER: cms
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+    volumes:
+      - cms-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cms -d cms"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  backend:
+    image: cms-common-foundation-backend:local
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    pull_policy: build
+    environment:
+      DB_URL: jdbc:postgresql://database:5432/cms
+      DB_USERNAME: cms
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  frontend:
+    image: cms-common-foundation-frontend:local
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    pull_policy: build
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+networks:
+  default:
+    name: cms-1351-common-foundation
+    ipam:
+      config:
+        - subnet: 10.135.1.0/24
+
+volumes:
+  cms-postgres-data:

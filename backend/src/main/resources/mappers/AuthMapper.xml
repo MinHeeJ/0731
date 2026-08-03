@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.cms.auth.AuthMapper">
+  <select id="findByLoginId" resultType="map">
+    SELECT user_id AS "userId", login_id AS "loginId", password_hash AS "passwordHash", display_name AS "displayName", status, use_yn AS "useYn"
+    FROM user_account WHERE login_id = #{loginId} AND deleted_at IS NULL
+  </select>
+  <select id="findRoleCodesByUserId" resultType="string">
+    SELECT role_code FROM user_role WHERE user_id = #{userId} AND status = 'ACTIVE' AND use_yn = 'Y' AND deleted_at IS NULL ORDER BY role_code
+  </select>
+  <insert id="insertSession">
+    INSERT INTO session (session_id, user_id, issued_at, expires_at, status, client_label, created_at, updated_at)
+    VALUES (#{sessionId}, #{userId}, now(), now() + (#{hours} || ' hours')::interval, 'ACTIVE', 'local', now(), now())
+  </insert>
+  <select id="findSession" resultType="map">
+    SELECT s.session_id AS "sessionId", u.user_id AS "userId", u.login_id AS "loginId", u.display_name AS "displayName"
+    FROM session s JOIN user_account u ON u.user_id = s.user_id
+    WHERE s.session_id = #{sessionId} AND s.status = 'ACTIVE' AND s.expires_at > now() AND u.use_yn = 'Y' AND u.status = 'ACTIVE'
+  </select>
+  <update id="revokeSession">UPDATE session SET status = 'REVOKED', updated_at = now() WHERE session_id = #{sessionId} AND status = 'ACTIVE'</update>
+</mapper>
