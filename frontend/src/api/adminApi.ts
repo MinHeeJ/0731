@@ -155,3 +155,40 @@ export const updateDetailCode = (
     `/api/code-groups/${groupId}/detail-codes/${codeValue}`,
     { method: "PUT", body: JSON.stringify(body) },
   );
+
+export const listPositions = (filters: Record<string, string> = {}) =>
+  api<Record<string, unknown>[]>(`/api/positions${qs(filters)}`);
+export const createPosition = (body: Record<string, unknown>) =>
+  api<Record<string, unknown>[]>("/api/positions", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+export const updatePosition = (
+  positionId: string,
+  body: Record<string, unknown>,
+) =>
+  api<Record<string, unknown>[]>(`/api/positions/${positionId}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+export const listCommonConfigs = () =>
+  api<Record<string, unknown>[]>("/api/common-configs");
+export const saveCommonConfigs = (body: Record<string, unknown>) =>
+  api<Record<string, unknown>[]>("/api/common-configs", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+export const listNotices = (filters: Record<string, string> = {}) =>
+  api<Record<string, unknown>[]>(`/api/notices${qs(filters)}`);
+export const getNotice = (noticeId: string) =>
+  api<Record<string, unknown>>(`/api/notices/${noticeId}`);
+export const createNotice = (body: Record<string, unknown>) =>
+  api<Record<string, unknown>>("/api/notices", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+export const updateNotice = (noticeId: string, body: Record<string, unknown>) =>
+  api<Record<string, unknown>>(`/api/notices/${noticeId}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });

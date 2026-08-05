@@ -74,6 +74,26 @@ const labels: Record<string, string> = {
   codeName: "코드명",
   parentCodeValue: "상위코드",
   additionalAttributes: "추가속성(JSON)",
+  positionId: "보직ID",
+  positionCode: "보직코드",
+  displayName: "사용자명",
+  baseDate: "기준일",
+  configKey: "설정키",
+  configValue: "설정값",
+  unit: "단위",
+  displayNameConfig: "설정명",
+  title: "제목",
+  content: "내용",
+  noticeId: "공지ID",
+  postingStartDate: "게시 시작일",
+  postingEndDate: "게시 종료일",
+  targetRoleCode: "대상 역할",
+  targetOrganizationCode: "대상 조직",
+  importantYn: "중요여부",
+  attachmentCount: "첨부 수",
+  attachmentFileName: "파일명",
+  attachmentPath: "저장경로",
+  attachmentSize: "파일크기",
 };
 
 const selectOptions: Record<string, string[]> = {
@@ -83,6 +103,8 @@ const selectOptions: Record<string, string[]> = {
   decision: ["ALLOW", "DENY"],
   assignmentType: ["POSITION", "MANUAL"],
   employmentStatus: ["ACTIVE", "RETIRED", "LEAVE"],
+  importantYn: ["Y", "N"],
+  unit: ["MINUTE", "COUNT", "YEAR", "SECOND"],
 };
 
 const configs: Record<string, Config> = {
@@ -347,6 +369,122 @@ const configs: Record<string, Config> = {
     empty: "코드그룹이 없습니다",
     detailLink: (r) => `/system/code-groups/${r.groupId}/detail-codes`,
   },
+  positions: {
+    title: "보직 관리",
+    goal: "기존 사용자·조직을 변경하지 않고 보직코드·대상 사용자·소속조직·유효기간으로 보직정보를 관리합니다.",
+    archetype: "SEARCH_LIST_DETAIL",
+    path: "/api/positions",
+    columns: [
+      "positionId",
+      "positionCode",
+      "userId",
+      "displayName",
+      "organizationCode",
+      "organizationName",
+      "effectiveStartDate",
+      "effectiveEndDate",
+      "useYn",
+    ],
+    filters: ["positionCode", "organizationCode", "baseDate", "useYn"],
+    fields: [
+      "positionId",
+      "positionCode",
+      "userId",
+      "organizationCode",
+      "effectiveStartDate",
+      "effectiveEndDate",
+      "useYn",
+      "changeReason",
+    ],
+    readonly: ["positionId"],
+    identity: ["positionId"],
+    allowCreate: true,
+    primary: "positionId",
+    savePath: (r) =>
+      r.positionId ? `/api/positions/${r.positionId}` : "/api/positions",
+    method: (r) => (r.positionId ? "PUT" : "POST"),
+    empty: "조건에 맞는 보직정보가 없습니다",
+    note: "사용자 인사정보와 조직구조, 메뉴·기능 권한은 이 화면에서 변경하지 않습니다.",
+  },
+  "common-configs": {
+    title: "공통 환경설정",
+    goal: "세션 유휴시간, 페이지당 조회건수, 기본 검색기간, 대량조회 기준건수, 장시간작업 안내 기준을 전역 설정값으로 저장합니다.",
+    archetype: "SEARCH_LIST_DETAIL",
+    path: "/api/common-configs",
+    columns: [
+      "configKey",
+      "displayName",
+      "configValue",
+      "unit",
+      "description",
+      "useYn",
+    ],
+    filters: [],
+    fields: [
+      "configKey",
+      "displayName",
+      "configValue",
+      "unit",
+      "description",
+      "changeReason",
+    ],
+    readonly: ["configKey", "displayName", "unit", "description"],
+    identity: ["configKey"],
+    allowCreate: false,
+    primary: "configKey",
+    savePath: () => "/api/common-configs",
+    method: () => "PUT",
+    empty: "환경설정 항목이 없습니다",
+    note: "값은 항목별 단위에 맞는 양의 정수만 저장합니다. 사용자별·업무별 설정은 만들지 않습니다.",
+  },
+  notices: {
+    title: "공지사항 관리",
+    goal: "제목, 게시기간, 대상 역할·조직, 중요여부, 첨부파일 메타데이터로 공지사항을 등록·수정합니다.",
+    archetype: "SEARCH_LIST_DETAIL",
+    path: "/api/notices",
+    columns: [
+      "noticeId",
+      "title",
+      "postingStartDate",
+      "postingEndDate",
+      "targetRoleCode",
+      "targetOrganizationCode",
+      "importantYn",
+      "attachmentCount",
+      "useYn",
+    ],
+    filters: [
+      "title",
+      "targetRoleCode",
+      "targetOrganizationCode",
+      "baseDate",
+      "importantYn",
+    ],
+    fields: [
+      "noticeId",
+      "title",
+      "content",
+      "postingStartDate",
+      "postingEndDate",
+      "targetRoleCode",
+      "targetOrganizationCode",
+      "importantYn",
+      "attachmentFileName",
+      "attachmentPath",
+      "attachmentSize",
+      "useYn",
+      "changeReason",
+    ],
+    readonly: ["noticeId"],
+    identity: ["noticeId"],
+    allowCreate: true,
+    primary: "noticeId",
+    savePath: (r) =>
+      r.noticeId ? `/api/notices/${r.noticeId}` : "/api/notices",
+    method: (r) => (r.noticeId ? "PUT" : "POST"),
+    empty: "조건에 맞는 공지사항이 없습니다",
+    note: "공지 열람은 업무 승인/확인처리로 간주하지 않으며 권한 설정 자체를 변경하지 않습니다.",
+  },
   "detail-codes": {
     title: "상세코드 관리",
     goal: "코드그룹별 상세코드 계층과 코드값·상위코드·정렬순서·추가속성을 관리합니다.",
@@ -420,6 +558,33 @@ function normalizeBody(
   });
   if (type === "user-roles" && !selected?.[cfg.primary]) {
     body.assignmentType = "MANUAL";
+  }
+  if (type === "common-configs") {
+    return {
+      items: [
+        {
+          configKey: String(selected?.configKey || form.configKey || ""),
+          configValue: form.configValue || "",
+          unit: String(selected?.unit || form.unit || ""),
+          displayName: String(selected?.displayName || form.displayName || ""),
+          description: String(selected?.description || form.description || ""),
+        },
+      ],
+      changeReason: form.changeReason || "",
+    };
+  }
+  if (type === "notices") {
+    const attachmentName = form.attachmentFileName?.trim();
+    if (attachmentName) {
+      body.attachments = [
+        {
+          originalFileName: attachmentName,
+          storedFilePath:
+            form.attachmentPath?.trim() || "/notice/metadata-only",
+          fileSize: Number(form.attachmentSize || 0),
+        },
+      ];
+    }
   }
   if (type === "menu-permissions") return { ...body, permissions: [body] };
   return body;

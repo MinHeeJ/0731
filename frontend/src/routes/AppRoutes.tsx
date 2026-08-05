@@ -19,6 +19,9 @@ import { MenuStructureManagementPage } from "../pages/MenuStructureManagementPag
 import { MenuInformationManagementPage } from "../pages/MenuInformationManagementPage";
 import { CodeGroupManagementPage } from "../pages/CodeGroupManagementPage";
 import { DetailCodeManagementPage } from "../pages/DetailCodeManagementPage";
+import { PositionManagementPage } from "../pages/PositionManagementPage";
+import { CommonConfigManagementPage } from "../pages/CommonConfigManagementPage";
+import { NoticeManagementPage } from "../pages/NoticeManagementPage";
 
 const navGroups = [
   {
@@ -26,6 +29,7 @@ const navGroups = [
     items: [
       ["사용자 관리", "/system/users"],
       ["조직 관리", "/system/organizations"],
+      ["보직 관리", "/system/positions"],
     ],
   },
   {
@@ -49,6 +53,14 @@ const navGroups = [
       ["코드그룹 관리", "/system/code-groups"],
       ["상세코드 관리", "/system/code-groups/EVAL_AREA/detail-codes"],
     ],
+  },
+  {
+    title: "시스템 환경설정",
+    items: [["공통 환경설정", "/system/common-configs"]],
+  },
+  {
+    title: "공지·도움말 관리",
+    items: [["공지사항 관리", "/system/notices"]],
   },
   {
     title: "검증",
@@ -146,6 +158,10 @@ export function AppRoutes() {
         element={protectedPage(<OrganizationManagementPage />)}
       />
       <Route
+        path="/system/positions"
+        element={protectedPage(<PositionManagementPage />)}
+      />
+      <Route
         path="/system/roles"
         element={protectedPage(<RoleManagementPage />)}
       />
@@ -172,6 +188,14 @@ export function AppRoutes() {
       <Route
         path="/system/code-groups/:groupId/detail-codes"
         element={protectedPage(<DetailCodeManagementPage />)}
+      />
+      <Route
+        path="/system/common-configs"
+        element={protectedPage(<CommonConfigManagementPage />)}
+      />
+      <Route
+        path="/system/notices"
+        element={protectedPage(<NoticeManagementPage />)}
       />
       <Route
         path="/system/validation"

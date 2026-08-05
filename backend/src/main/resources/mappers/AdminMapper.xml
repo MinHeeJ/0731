@@ -22,4 +22,96 @@
   <select id="listDetailCodes" resultType="map">SELECT group_id AS "groupId", code_value AS "codeValue", code_name AS "codeName", parent_code_value AS "parentCodeValue", display_order AS "displayOrder", additional_attributes AS "additionalAttributes", effective_start_date AS "effectiveStartDate", effective_end_date AS "effectiveEndDate", status, use_yn AS "useYn" FROM detail_code WHERE group_id=#{groupId} ORDER BY display_order</select>
   <insert id="createDetailCode">INSERT INTO detail_code (group_id, code_value, code_name, parent_code_value, display_order, additional_attributes, effective_start_date, effective_end_date, status, use_yn, created_at, updated_at) VALUES (#{groupId}, #{body.codeValue}, #{body.codeName}, #{body.parentCodeValue}, COALESCE(#{body.displayOrder}, 99), CAST(COALESCE(#{body.additionalAttributes}, '{}') AS jsonb), NULLIF(#{body.effectiveStartDate}, '')::date, NULLIF(#{body.effectiveEndDate}, '')::date, COALESCE(#{body.status}, 'ACTIVE'), COALESCE(#{body.useYn}, 'Y'), now(), now())</insert>
   <update id="updateDetailCode">UPDATE detail_code SET code_name=COALESCE(#{body.codeName}, code_name), parent_code_value=COALESCE(#{body.parentCodeValue}, parent_code_value), display_order=COALESCE(#{body.displayOrder}, display_order), status=COALESCE(#{body.status}, status), use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now() WHERE group_id=#{groupId} AND code_value=#{codeValue}</update>
+
+  <select id="listPositions" resultType="map">
+    SELECT cp.position_id AS "positionId", cp.position_code AS "positionCode", cp.user_id AS "userId", ua.display_name AS "displayName",
+           cp.organization_code AS "organizationCode", o.organization_name AS "organizationName",
+           cp.effective_start_date AS "effectiveStartDate", cp.effective_end_date AS "effectiveEndDate", cp.use_yn AS "useYn"
+    FROM common_position cp
+    JOIN user_account ua ON ua.user_id=cp.user_id
+    JOIN organization o ON o.organization_code=cp.organization_code
+    <where>
+      <if test="f.positionId != null and f.positionId != ''">cp.position_id=#{f.positionId}</if>
+      <if test="f.positionCode != null and f.positionCode != ''">AND cp.position_code=#{f.positionCode}</if>
+      <if test="f.userId != null and f.userId != ''">AND cp.user_id=#{f.userId}</if>
+      <if test="f.organizationCode != null and f.organizationCode != ''">AND cp.organization_code=#{f.organizationCode}</if>
+      <if test="f.baseDate != null and f.baseDate != ''">AND cp.effective_start_date &lt;= NULLIF(#{f.baseDate}, '')::date AND cp.effective_end_date &gt;= NULLIF(#{f.baseDate}, '')::date</if>
+      <if test="f.useYn != null and f.useYn != ''">AND cp.use_yn=#{f.useYn}</if>
+    </where>
+    ORDER BY cp.position_code, cp.organization_code, cp.effective_start_date DESC
+  </select>
+  <insert id="insertPosition">
+    INSERT INTO common_position (position_code, user_id, organization_code, effective_start_date, effective_end_date, use_yn, created_at, updated_at, change_reason)
+    VALUES (#{body.positionCode}, #{body.userId}, #{body.organizationCode}, NULLIF(#{body.effectiveStartDate}, '')::date, NULLIF(#{body.effectiveEndDate}, '')::date, COALESCE(#{body.useYn}, 'Y'), now(), now(), #{body.changeReason})
+  </insert>
+  <update id="updatePosition">
+    UPDATE common_position SET position_code=#{body.positionCode}, user_id=#{body.userId}, organization_code=#{body.organizationCode},
+      effective_start_date=NULLIF(#{body.effectiveStartDate}, '')::date, effective_end_date=NULLIF(#{body.effectiveEndDate}, '')::date,
+      use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now(), change_reason=#{body.changeReason}
+    WHERE position_id=#{positionId}
+  </update>
+  <select id="countUser" resultType="int">SELECT COUNT(*) FROM user_account WHERE user_id=#{userId} AND use_yn='Y'</select>
+  <select id="countOrganization" resultType="int">SELECT COUNT(*) FROM organization WHERE organization_code=#{organizationCode} AND use_yn='Y'</select>
+  <select id="countRole" resultType="int">SELECT COUNT(*) FROM role WHERE role_code=#{roleCode} AND use_yn='Y'</select>
+  <select id="listCommonConfigs" resultType="map">
+    SELECT config_key AS "configKey", config_value AS "configValue", unit, display_name AS "displayName", description, use_yn AS "useYn"
+    FROM common_config WHERE use_yn='Y'
+    ORDER BY CASE config_key
+      WHEN 'SESSION_IDLE_TIMEOUT_MINUTES' THEN 1
+      WHEN 'PAGE_SIZE' THEN 2
+      WHEN 'DEFAULT_SEARCH_PERIOD_YEARS' THEN 3
+      WHEN 'BULK_QUERY_THRESHOLD_COUNT' THEN 4
+      WHEN 'LONG_TASK_NOTICE_THRESHOLD_SECONDS' THEN 5
+      ELSE 99 END
+  </select>
+  <insert id="upsertCommonConfig">
+    INSERT INTO common_config (config_key, config_value, unit, display_name, description, use_yn, created_at, updated_at, change_reason)
+    VALUES (#{body.configKey}, #{body.configValue}, #{body.unit}, COALESCE(#{body.displayName}, #{body.configKey}), #{body.description}, 'Y', now(), now(), #{changeReason})
+    ON CONFLICT (config_key) DO UPDATE SET config_value=EXCLUDED.config_value, unit=EXCLUDED.unit, updated_at=now(), change_reason=EXCLUDED.change_reason
+  </insert>
+  <select id="listNotices" resultType="map">
+    SELECT n.notice_id AS "noticeId", n.title, n.content, n.posting_start_date AS "postingStartDate", n.posting_end_date AS "postingEndDate",
+           n.target_role_code AS "targetRoleCode", n.target_organization_code AS "targetOrganizationCode", n.important_yn AS "importantYn",
+           n.created_by AS "createdBy", n.use_yn AS "useYn", n.created_at AS "createdAt", COUNT(a.attachment_id) AS "attachmentCount"
+    FROM notice n
+    LEFT JOIN notice_attachment a ON a.notice_id=n.notice_id
+    <where>
+      n.use_yn='Y'
+      <if test="f.noticeId != null and f.noticeId != ''">AND n.notice_id=#{f.noticeId}</if>
+      <if test="f.title != null and f.title != ''">AND n.title LIKE CONCAT('%', #{f.title}, '%')</if>
+      <if test="f.targetRoleCode != null and f.targetRoleCode != ''">AND n.target_role_code=#{f.targetRoleCode}</if>
+      <if test="f.targetOrganizationCode != null and f.targetOrganizationCode != ''">AND n.target_organization_code=#{f.targetOrganizationCode}</if>
+      <if test="f.baseDate != null and f.baseDate != ''">AND n.posting_start_date &lt;= NULLIF(#{f.baseDate}, '')::date AND n.posting_end_date &gt;= NULLIF(#{f.baseDate}, '')::date</if>
+      <if test="f.importantYn != null and f.importantYn != ''">AND n.important_yn=#{f.importantYn}</if>
+    </where>
+    GROUP BY n.notice_id
+    ORDER BY n.important_yn DESC, n.posting_start_date DESC, n.notice_id DESC
+  </select>
+  <select id="getNotice" resultType="map">
+    SELECT notice_id AS "noticeId", title, content, posting_start_date AS "postingStartDate", posting_end_date AS "postingEndDate",
+           target_role_code AS "targetRoleCode", target_organization_code AS "targetOrganizationCode", important_yn AS "importantYn",
+           created_by AS "createdBy", use_yn AS "useYn", created_at AS "createdAt"
+    FROM notice WHERE notice_id=#{noticeId} AND use_yn='Y'
+  </select>
+  <insert id="insertNotice" useGeneratedKeys="true" keyProperty="body.noticeId" keyColumn="notice_id">
+    INSERT INTO notice (title, content, posting_start_date, posting_end_date, target_role_code, target_organization_code, important_yn, created_by, use_yn, created_at, updated_at, change_reason)
+    VALUES (#{body.title}, #{body.content}, NULLIF(#{body.postingStartDate}, '')::date, NULLIF(#{body.postingEndDate}, '')::date,
+            NULLIF(#{body.targetRoleCode}, ''), NULLIF(#{body.targetOrganizationCode}, ''), COALESCE(#{body.importantYn}, 'N'), #{createdBy}, COALESCE(#{body.useYn}, 'Y'), now(), now(), #{body.changeReason})
+  </insert>
+  <update id="updateNotice">
+    UPDATE notice SET title=#{body.title}, content=#{body.content}, posting_start_date=NULLIF(#{body.postingStartDate}, '')::date,
+      posting_end_date=NULLIF(#{body.postingEndDate}, '')::date, target_role_code=NULLIF(#{body.targetRoleCode}, ''),
+      target_organization_code=NULLIF(#{body.targetOrganizationCode}, ''), important_yn=COALESCE(#{body.importantYn}, important_yn),
+      use_yn=COALESCE(#{body.useYn}, use_yn), updated_at=now(), change_reason=#{body.changeReason}
+    WHERE notice_id=#{noticeId}
+  </update>
+  <select id="listNoticeAttachments" resultType="map">
+    SELECT attachment_id AS "attachmentId", notice_id AS "noticeId", original_file_name AS "originalFileName", stored_file_path AS "storedFilePath", file_size AS "fileSize", created_at AS "createdAt"
+    FROM notice_attachment WHERE notice_id=#{noticeId} ORDER BY attachment_id
+  </select>
+  <delete id="deleteNoticeAttachments">DELETE FROM notice_attachment WHERE notice_id=#{noticeId}</delete>
+  <insert id="insertNoticeAttachment">
+    INSERT INTO notice_attachment (notice_id, original_file_name, stored_file_path, file_size, created_at)
+    VALUES (#{noticeId}, #{body.originalFileName}, #{body.storedFilePath}, COALESCE(#{body.fileSize}, 0), now())
+  </insert>
 </mapper>
