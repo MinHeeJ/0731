@@ -16,7 +16,8 @@ public class SessionAuthenticationInterceptor implements HandlerInterceptor {
         if (!path.startsWith("/api/") || path.equals("/api/health") || path.equals("/api/auth/login") || path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui")) return true;
         SessionUser user = sessionService.resolve(cookie(request));
         if (user == null) { write(response, 401, "인증이 필요합니다."); return false; }
-        if (!user.hasRole("R09") && !path.equals("/api/auth/me") && !path.equals("/api/auth/logout")) { write(response, 403, "권한이 없습니다."); return false; }
+        boolean authenticatedOnlyRead = "GET".equals(request.getMethod()) && (path.equals("/api/system-config") || path.startsWith("/api/system-config/"));
+        if (!user.hasRole("R09") && !authenticatedOnlyRead && !path.equals("/api/auth/me") && !path.equals("/api/auth/logout")) { write(response, 403, "권한이 없습니다."); return false; }
         SessionContext.set(user); return true;
     }
     @Override public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) { SessionContext.clear(); }

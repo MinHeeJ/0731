@@ -42,5 +42,9 @@ describe("AppRoutes navigation shell", () => {
     expect(
       await screen.findByRole("heading", { name: "역할 관리" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "공통 환경설정" })).toHaveAttribute(
+      "href",
+      "/system/config/common",
+    );
   });
 });

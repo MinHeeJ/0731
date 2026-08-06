@@ -19,6 +19,7 @@ import { MenuStructureManagementPage } from "../pages/MenuStructureManagementPag
 import { MenuInformationManagementPage } from "../pages/MenuInformationManagementPage";
 import { CodeGroupManagementPage } from "../pages/CodeGroupManagementPage";
 import { DetailCodeManagementPage } from "../pages/DetailCodeManagementPage";
+import { SystemConfigPage } from "../pages/SystemConfigPage";
 
 const navGroups = [
   {
@@ -49,6 +50,10 @@ const navGroups = [
       ["코드그룹 관리", "/system/code-groups"],
       ["상세코드 관리", "/system/code-groups/EVAL_AREA/detail-codes"],
     ],
+  },
+  {
+    title: "시스템 환경설정",
+    items: [["공통 환경설정", "/system/config/common"]],
   },
   {
     title: "검증",
@@ -96,9 +101,22 @@ function Layout({ children }: { children: JSX.Element }) {
               </section>
             ))
           ) : (
-            <div className="permission-card">
-              R09 권한이 없어 메뉴가 숨겨졌습니다.
-            </div>
+            <>
+              <section className="nav-group">
+                <p>시스템 환경설정</p>
+                <NavLink
+                  to="/system/config/common"
+                  className={({ isActive }) =>
+                    `nav-item${isActive ? " active" : ""}`
+                  }
+                >
+                  <span>공통 환경설정</span>
+                </NavLink>
+              </section>
+              <div className="permission-card">
+                R09 권한이 없어 변경 메뉴가 숨겨졌습니다.
+              </div>
+            </>
           )}
         </nav>
         <button
@@ -172,6 +190,10 @@ export function AppRoutes() {
       <Route
         path="/system/code-groups/:groupId/detail-codes"
         element={protectedPage(<DetailCodeManagementPage />)}
+      />
+      <Route
+        path="/system/config/common"
+        element={protectedPage(<SystemConfigPage />)}
       />
       <Route
         path="/system/validation"

@@ -7,7 +7,7 @@ type Auth = {
   setUser: (u: CurrentUser | null) => void;
   hasRole: (r: string) => boolean;
 };
-const AuthContext = createContext<Auth | null>(null);
+export const AuthContext = createContext<Auth | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);

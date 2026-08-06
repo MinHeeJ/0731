@@ -9,6 +9,9 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Older shared databases may already contain V005/V006 from another release.
+    # Keep those applied migrations valid while this feature starts at V007/V008.
+    ignore-migration-patterns: "*:missing"
   jackson:
     default-property-inclusion: non_null
 server:
