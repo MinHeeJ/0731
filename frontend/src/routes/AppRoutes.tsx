@@ -19,6 +19,7 @@ import { MenuStructureManagementPage } from "../pages/MenuStructureManagementPag
 import { MenuInformationManagementPage } from "../pages/MenuInformationManagementPage";
 import { CodeGroupManagementPage } from "../pages/CodeGroupManagementPage";
 import { DetailCodeManagementPage } from "../pages/DetailCodeManagementPage";
+import { CommonSettingsPage } from "../pages/CommonSettingsPage";
 
 const navGroups = [
   {
@@ -49,6 +50,10 @@ const navGroups = [
       ["코드그룹 관리", "/system/code-groups"],
       ["상세코드 관리", "/system/code-groups/EVAL_AREA/detail-codes"],
     ],
+  },
+  {
+    title: "시스템 환경설정",
+    items: [["공통 환경설정", "/system/common-settings"]],
   },
   {
     title: "검증",
@@ -176,6 +181,10 @@ export function AppRoutes() {
       <Route
         path="/system/validation"
         element={protectedPage(<ValidationPage />)}
+      />
+      <Route
+        path="/system/common-settings"
+        element={protectedPage(<CommonSettingsPage />)}
       />
     </Routes>
   );

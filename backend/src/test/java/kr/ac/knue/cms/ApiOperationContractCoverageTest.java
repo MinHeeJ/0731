@@ -76,7 +76,7 @@ class ApiOperationContractCoverageTest {
     void openapi_fixture_is_loaded_from_classpath_contracts() throws Exception {
         ClassPathResource contract = new ClassPathResource("contracts/openapi.yaml");
         org.assertj.core.api.Assertions.assertThat(contract.exists()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(contract.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("/api/auth/login");
+        org.assertj.core.api.Assertions.assertThat(contract.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("/api/system/common-settings");
     }
 
     @Test

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.cms.commonsetting.CommonSettingMapper">
+  <sql id="CommonSettingColumns">setting_key AS "settingKey", setting_value AS "settingValue", setting_unit AS "settingUnit", setting_meaning AS "settingMeaning"</sql>
+  <select id="list" resultType="map">
+    SELECT <include refid="CommonSettingColumns" />
+    FROM common_setting
+    <where>
+      <if test="settingKey != null and settingKey != ''">setting_key = #{settingKey}</if>
+    </where>
+    ORDER BY CASE setting_key
+      WHEN 'sessionIdleTime' THEN 1
+      WHEN 'pageSize' THEN 2
+      WHEN 'defaultSearchPeriod' THEN 3
+      WHEN 'bulkQueryThreshold' THEN 4
+      WHEN 'longRunningTaskNoticeThreshold' THEN 5
+      ELSE 99 END
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+  <select id="count" resultType="int">
+    SELECT COUNT(*) FROM common_setting
+    <where>
+      <if test="settingKey != null and settingKey != ''">setting_key = #{settingKey}</if>
+    </where>
+  </select>
+  <select id="findOne" resultType="map">
+    SELECT <include refid="CommonSettingColumns" /> FROM common_setting WHERE setting_key = #{settingKey}
+  </select>
+  <update id="updateValue">
+    UPDATE common_setting SET setting_value = #{settingValue}, updated_at = now() WHERE setting_key = #{settingKey}
+  </update>
+  <select id="countOverrideLikeRows" resultType="int">
+    SELECT COUNT(*) FROM common_setting WHERE setting_key LIKE '%user%' OR setting_key LIKE '%business%' OR setting_key LIKE '%override%'
+  </select>
+</mapper>
