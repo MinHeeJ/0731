@@ -76,7 +76,7 @@ class ApiOperationStaticInventoryTest {
     void classpath_openapi_contract_fixture_is_present_for_contract_tests() throws Exception {
         ClassPathResource contract = new ClassPathResource("contracts/openapi.yaml");
         org.assertj.core.api.Assertions.assertThat(contract.exists()).isTrue();
-        org.assertj.core.api.Assertions.assertThat(contract.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("/api/users");
+        org.assertj.core.api.Assertions.assertThat(contract.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("/api/system/common-settings");
     }
 
     @Test

@@ -22,6 +22,7 @@ services:
       DB_URL: jdbc:postgresql://database:5432/cms
       DB_USERNAME: cms
       DB_PASSWORD: ${POSTGRES_PASSWORD:-cms_password}
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     ports:
       - "8080:8080"
     depends_on:

@@ -1,7 +1,12 @@
 export type ApiResponse<T> = {
   success: boolean;
   data?: T;
-  error?: { message: string; fields?: Record<string, string> };
+  error?: {
+    code?: string;
+    message: string;
+    fields?: Record<string, string>;
+    fieldErrors?: Record<string, string>;
+  };
   pagination?: unknown;
 };
 export async function api<T>(

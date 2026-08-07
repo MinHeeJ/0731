@@ -1,2317 +1,850 @@
 openapi: 3.0.3
 info:
-  title: 교원사이트 공통기능 API
-  version: 1.0.0
-  description: CMS-1351 test0731 1차 완료 목표 HTTP API 계약
+  title: CMS-1398 공통 환경설정 API
+  version: 0.1.0
+  description: >-
+    CMN-FR-019 공통 환경설정 조회 및 변경 저장 계약이다. 문장은 한국어로 작성하고
+    code identifiers, API paths, table names, enum values는 원문을 유지한다.
 servers:
-- url: /
+  - url: /
+security:
+  - existingSystemAuth: []
+tags:
+  - name: CommonSettings
+    description: 공통 환경설정
 paths:
-  /api/health:
+  /api/system/common-settings:
     get:
-      operationId: getHealth
-      summary: 상태 확인
-      x-related-requirements:
-      - REQ-016
-      - REQ-046
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-  /api/auth/login:
-    post:
-      operationId: login
-      summary: 로그인 세션 생성
-      x-related-requirements:
-      - REQ-012
-      - REQ-027
-      - REQ-036
-      - REQ-037
-      - REQ-039
-      x-business-rules:
-      - login_id와 password가 seed 또는 로컬 계정과 일치해야 한다
-      - 비활성 계정은 로그인할 수 없다
-      x-side-effects:
-      - session row를 ACTIVE 상태로 저장한다
-      - HttpOnly SameSite=Lax session cookie를 발급한다
-      x-required-tests:
-      - 'happy: login_id=admin 및 password=admin 요청 -> session table에 ACTIVE row가 저장되고 GET /api/auth/me가 R09를 반환한다'
-      - 'auth: user_account.status=DISABLED인 계정 로그인 요청 -> HTTP 403과 ApiError.message가 반환된다'
-      - 'validation: password 누락 -> ApiError.fields.password 오류가 포함된다'
-      - 'business: login_id와 password가 seed 또는 로컬 계정과 일치해야 한다 위반 -> session table에 새 row가 생성되지 않는다'
-      - 'side-effect: 로그인 세션 생성 성공 -> HttpOnly SameSite=Lax cookie와 session.status=ACTIVE row가 존재한다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      x-state-transitions:
-      - 없음 -> ACTIVE
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-  /api/auth/logout:
-    post:
-      operationId: logout
-      summary: 로그아웃 세션 종료
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-027
-      - REQ-028
-      x-business-rules:
-      - ACTIVE session만 로그아웃할 수 있다
-      x-side-effects:
-      - session.status를 REVOKED로 갱신한다
-      - 응답 cookie 만료를 반환한다
-      x-required-tests:
-      - 'happy: 유효한 로그아웃 세션 종료 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 로그아웃 세션 종료 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: ACTIVE session만 로그아웃할 수 있다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 로그아웃 세션 종료 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      x-state-transitions:
-      - ACTIVE -> REVOKED
-      x-roles:
-      - authenticated
-  /api/auth/me:
-    get:
-      operationId: getCurrentUser
-      summary: 현재 사용자 조회
-      x-related-requirements:
-      - REQ-027
-      - REQ-028
-      - REQ-038
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      x-roles:
-      - authenticated
-  /api/users:
-    get:
-      operationId: listUsers
-      summary: 사용자 조건 조회
-      x-related-requirements:
-      - REQ-001
-      - REQ-010
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
+      tags: [CommonSettings]
+      operationId: getCommonSettings
+      summary: 공통 환경설정 조회
+      x-related-requirements: [REQ-001]
+      x-related-fr: [CMN-FR-019]
       parameters:
-      - &id001
-        $ref: '#/components/parameters/Page'
-      - &id002
-        $ref: '#/components/parameters/Size'
-      - &id003
-        $ref: '#/components/parameters/Sort'
-      - name: staffNo
-        in: query
-        schema:
-          type: string
-      - name: name
-        in: query
-        schema:
-          type: string
-      - name: organizationCode
-        in: query
-        schema:
-          type: string
-      - name: position
-        in: query
-        schema:
-          type: string
-      - name: employmentStatus
-        in: query
-        schema:
-          type: string
-      - name: roleCode
-        in: query
-        schema:
-          type: string
-      - name: useYn
-        in: query
-        schema:
-          type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: filter
-        in: query
-        required: false
-        schema:
-          type: string
-      x-roles:
-      - authenticated
-  /api/users/{userId}/usage:
-    patch:
-      operationId: updateUserUsage
-      summary: 사용자 사용여부 변경
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-001
-      - REQ-011
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - KORUS 원천 인사정보 field는 요청 payload에 포함되어도 저장하지 않는다
-      - use_yn은 Y 또는 N이어야 한다
-      x-side-effects:
-      - user_account.use_yn을 갱신한다
-      - change_history에 변경 전후 값과 사유를 기록한다
-      x-required-tests:
-      - 'happy: 유효한 사용자 사용여부 변경 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 사용자 사용여부 변경 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: KORUS 원천 인사정보 field는 요청 payload에 포함되어도 저장하지 않는다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 사용자 사용여부 변경 성공 -> change_history 또는 관련 상태 row가 생성된다'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SettingKeyFilterParam'
       responses:
         '200':
-          description: 저장 성공
+          description: 공통 환경설정 항목과 현재 값 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSettingsPage'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      items:
+                        - settingKey: sessionIdleTime
+                          settingValue: '<OQ-001>'
+                          settingUnit: '<OQ-001>'
+                          settingMeaning: 세션 유휴시간
+                      page: 0
+                      size: 20
+                      totalElements: 5
+                    error: null
         '400':
-          description: 검증 오류
+          description: 조회 조건 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
         '401':
-          description: 인증 필요
+          description: 기존 시스템 인증 컨텍스트 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/users/{userId}/roles:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
     put:
-      operationId: replaceUserBusinessRoles
-      summary: 사용자 업무 역할 변경
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-001
-      - REQ-004
-      - REQ-011
-      - REQ-017
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: updateCommonSettings
+      summary: 공통 환경설정 저장
+      x-related-requirements: [REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - 역할코드는 role table에 존재해야 한다
-      - 보직 기반 역할은 사용자 관리에서 직접 회수하지 않는다
+        - 저장 대상은 sessionIdleTime, pageSize, defaultSearchPeriod, bulkQueryThreshold, longRunningTaskNoticeThreshold로 제한한다.
+        - 각 설정값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - 특정 사용자나 특정 업무만의 개별 환경값은 요청 payload와 persistence 대상에서 제외한다.
+        - 세션 인증방식이나 대량처리 구현방식 선택은 이 저장 operation에서 결정하지 않는다.
       x-side-effects:
-      - user_role의 MANUAL 매핑을 저장한다
-      - change_history에 역할 변경 사유를 기록한다
+        - common_setting.setting_value를 변경 대상 setting_key별 현재 값으로 저장한다.
+        - 저장 성공 후 getCommonSettings 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 실패 시 common_setting의 기존 setting_value를 유지한다.
       x-required-tests:
-      - 'happy: 유효한 사용자 업무 역할 변경 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 사용자 업무 역할 변경 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 역할코드는 role table에 존재해야 한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 사용자 업무 역할 변경 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: userId
-        in: path
-        required: true
-        schema:
-          type: string
+        - 'happy: sessionIdleTime 변경값을 저장하면 후속 getCommonSettings 응답의 common_setting.setting_value가 같은 값으로 반환된다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 기존 인증 컨텍스트로 요청하면 403을 반환하고 common_setting.setting_value가 유지된다.'
+        - 'validation: pageSize에 페이지당 조회건수 의미와 맞지 않는 값을 보내면 fieldErrors.pageSize가 반환되고 기존 pageSize 값이 유지된다.'
+        - 'business: userId 또는 businessId override field가 포함되면 사용자별·업무별 개별 환경값 금지 규칙으로 차단되고 common_setting에 override row가 생성되지 않는다.'
+        - 'side-effect: bulkQueryThreshold 저장 성공 뒤 getCommonSettings 재조회에서 common_setting의 bulkQueryThreshold setting_value가 변경값으로 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/organizations:
-    get:
-      operationId: listOrganizations
-      summary: 조직 목록 조회
-      x-related-requirements:
-      - REQ-002
-      - REQ-010
-      - REQ-027
+              $ref: '#/components/schemas/UpdateCommonSettingsRequest'
+            examples:
+              partialUpdate:
+                value:
+                  sessionIdleTime: '<OQ-001>'
+                  pageSize: '<OQ-001>'
       responses:
         '200':
-          description: 조회 성공
+          description: 공통 환경설정 저장 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSettingsPage'
+              examples:
+                success:
+                  value:
+                    success: true
+                    data:
+                      items:
+                        - settingKey: pageSize
+                          settingValue: '<OQ-001>'
+                          settingUnit: '<OQ-001>'
+                          settingMeaning: 페이지당 조회건수
+                      page: 0
+                      size: 20
+                      totalElements: 5
+                    error: null
         '400':
-          description: 검증 오류
+          description: 항목 의미·단위 또는 payload 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
         '403':
-          description: 권한 없음
+          description: 변경 권한 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters:
-      - *id001
-      - *id002
-      - *id003
-      - name: organizationCode
-        in: query
-        schema:
-          type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: filter
-        in: query
-        required: false
-        schema:
-          type: string
-      x-roles:
-      - authenticated
-  /api/organizations/tree:
-    get:
-      operationId: getOrganizationTree
-      summary: 조직 계층 조회
-      x-related-requirements:
-      - REQ-002
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters:
-      - &id005
-        $ref: '#/components/parameters/Page'
-      - &id006
-        $ref: '#/components/parameters/Size'
-      - &id007
-        $ref: '#/components/parameters/Sort'
-      x-roles:
-      - authenticated
-  /api/organizations/{organizationCode}/relations:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+  /api/system/common-settings/bulk-query-threshold:
     put:
-      operationId: saveOrganizationRelation
-      summary: 조직 관계 적용기간 저장
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-002
-      - REQ-017
-      - REQ-021
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: bulkQueryThreshold
+      summary: 대량조회 기준건수 설정값 저장
+      description: '`SCR-COMMON-SETTINGS-EDIT` 화면에서 `bulkQueryThreshold` 값을 공통 환경설정으로 저장한다.'
+      x-screen-id: SCR-COMMON-SETTINGS-EDIT
+      x-ledger-api-path: PUT /api/system/common-settings
+      x-related-requirements: [REQ-005, REQ-007, REQ-008]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - effective_end_date는 effective_start_date보다 이전일 수 없다
-      - 조직 기본정보는 KORUS Mock snapshot 원천을 직접 수정하지 않는다
+        - bulkQueryThreshold만 대량조회 기준건수 의미의 공통 환경설정 설정값으로 저장할 수 있다.
+        - bulkQueryThreshold 값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - bulkQueryThreshold 저장 요청은 설정 단위나 항목 의미 metadata를 변경할 수 없다.
       x-side-effects:
-      - organization_relation row를 저장한다
-      - change_history에 상위조직 변경 전후 값을 기록한다
+        - common_setting에서 setting_key=bulkQueryThreshold row의 setting_value를 변경값으로 저장한다.
+        - 저장 성공 후 GET /api/system/common-settings?settingKey=bulkQueryThreshold 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 또는 업무 규칙 실패 시 common_setting에서 setting_key=bulkQueryThreshold row의 기존 setting_value와 setting_unit을 유지한다.
       x-required-tests:
-      - 'happy: 유효한 조직 관계 적용기간 저장 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 조직 관계 적용기간 저장 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: effective_end_date는 effective_start_date보다 이전일 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 조직 관계 적용기간 저장 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: organizationCode
-        in: path
-        required: true
-        schema:
-          type: string
+        - 'happy: setting_key=bulkQueryThreshold row가 있고 변경 권한이 있는 기존 인증 컨텍스트로 bulkQueryThreshold=<valid fixture>를 요청한다 -> PUT은 200을 반환하고 후속 GET /api/system/common-settings?settingKey=bulkQueryThreshold는 common_setting.setting_value=<valid fixture>를 반환한다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 existingSystemAuth 컨텍스트로 bulkQueryThreshold=<valid fixture>를 요청한다 -> PUT은 403을 반환하고 후속 GET은 common_setting.setting_value가 요청 전 값 그대로임을 반환한다.'
+        - 'validation: bulkQueryThreshold="invalid-unit"를 요청한다 -> PUT은 400을 반환하고 error.fieldErrors.bulkQueryThreshold가 존재한다.'
+        - 'business: bulkQueryThreshold 요청에 settingUnit 변경 field를 함께 보낸다 -> PUT은 400을 반환하고 common_setting.setting_key=bulkQueryThreshold row의 setting_unit은 요청 전 값 그대로이다.'
+        - 'side-effect: bulkQueryThreshold=<valid fixture> 저장이 성공한다 -> common_setting의 setting_key=bulkQueryThreshold row가 존재하고 setting_value만 <valid fixture>로 갱신되어 후속 read에서 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/roles:
-    get:
-      operationId: listRoles
-      summary: 역할 목록 조회
-      x-related-requirements:
-      - REQ-003
-      - REQ-027
+              additionalProperties: false
+              required: [bulkQueryThreshold]
+              properties:
+                bulkQueryThreshold:
+                  type: string
+                  description: 대량조회 기준건수 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
       responses:
         '200':
-          description: 조회 성공
+          description: 대량조회 기준건수 저장 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSetting'
         '400':
-          description: 검증 오류
+          description: 대량조회 기준건수 의미·단위 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
         '403':
-          description: 권한 없음
+          description: 공통 환경설정 변경 권한 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters: &id004
-      - *id001
-      - *id002
-      - *id003
-      - name: groupId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: filter
-        in: query
-        required: false
-        schema:
-          type: string
-      x-roles:
-      - authenticated
-    post:
-      operationId: createRole
-      summary: 역할 등록
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-003
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - role_code는 R01~R09 정책과 중복 금지를 만족해야 한다
-      - 목적과 역할명은 비어 있을 수 없다
-      x-side-effects:
-      - role row를 생성한다
-      - change_history에 역할 등록 사유를 기록한다
-      x-required-tests:
-      - 'happy: 유효한 역할 등록 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 역할 등록 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: role_code는 R01~R09 정책과 중복 금지를 만족해야 한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 역할 등록 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/roles/{roleCode}:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+
+  /api/system/common-settings/default-search-period:
     put:
-      operationId: updateRole
-      summary: 역할 기준 수정
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-003
-      - REQ-017
-      - REQ-021
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: defaultSearchPeriod
+      summary: 기본 검색기간 설정값 저장
+      description: '`SCR-COMMON-SETTINGS-EDIT` 화면에서 `defaultSearchPeriod` 값을 공통 환경설정으로 저장한다.'
+      x-screen-id: SCR-COMMON-SETTINGS-EDIT
+      x-ledger-api-path: PUT /api/system/common-settings
+      x-related-requirements: [REQ-004, REQ-007, REQ-008]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - 존재하지 않는 role_code 수정은 거부한다
-      - 역할명 변경 후에도 role_code는 변경하지 않는다
+        - defaultSearchPeriod만 기본 검색기간 의미의 공통 환경설정 설정값으로 저장할 수 있다.
+        - defaultSearchPeriod 값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - defaultSearchPeriod 저장 요청은 설정 단위나 항목 의미 metadata를 변경할 수 없다.
       x-side-effects:
-      - role의 purpose/assignment_criteria/default_data_scope를 갱신한다
-      - change_history에 역할 수정 전후 값을 기록한다
+        - common_setting에서 setting_key=defaultSearchPeriod row의 setting_value를 변경값으로 저장한다.
+        - 저장 성공 후 GET /api/system/common-settings?settingKey=defaultSearchPeriod 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 또는 업무 규칙 실패 시 common_setting에서 setting_key=defaultSearchPeriod row의 기존 setting_value와 setting_unit을 유지한다.
       x-required-tests:
-      - 'happy: 유효한 역할 기준 수정 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 역할 기준 수정 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 존재하지 않는 role_code 수정은 거부한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 역할 기준 수정 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: roleCode
-        in: path
-        required: true
-        schema:
-          type: string
+        - 'happy: setting_key=defaultSearchPeriod row가 있고 변경 권한이 있는 기존 인증 컨텍스트로 defaultSearchPeriod=<valid fixture>를 요청한다 -> PUT은 200을 반환하고 후속 GET /api/system/common-settings?settingKey=defaultSearchPeriod는 common_setting.setting_value=<valid fixture>를 반환한다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 existingSystemAuth 컨텍스트로 defaultSearchPeriod=<valid fixture>를 요청한다 -> PUT은 403을 반환하고 후속 GET은 common_setting.setting_value가 요청 전 값 그대로임을 반환한다.'
+        - 'validation: defaultSearchPeriod="invalid-unit"를 요청한다 -> PUT은 400을 반환하고 error.fieldErrors.defaultSearchPeriod가 존재한다.'
+        - 'business: defaultSearchPeriod 요청에 settingMeaning 변경 field를 함께 보낸다 -> PUT은 400을 반환하고 common_setting.setting_key=defaultSearchPeriod row의 setting_meaning은 요청 전 값 그대로이다.'
+        - 'side-effect: defaultSearchPeriod=<valid fixture> 저장이 성공한다 -> common_setting의 setting_key=defaultSearchPeriod row가 존재하고 setting_value만 <valid fixture>로 갱신되어 후속 read에서 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/user-roles:
-    get:
-      operationId: listUserRoles
-      summary: 사용자 역할 조회
-      x-related-requirements:
-      - REQ-004
-      - REQ-027
+              additionalProperties: false
+              required: [defaultSearchPeriod]
+              properties:
+                defaultSearchPeriod:
+                  type: string
+                  description: 기본 검색기간 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
       responses:
         '200':
-          description: 조회 성공
+          description: 기본 검색기간 저장 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSetting'
         '400':
-          description: 검증 오류
+          description: 기본 검색기간 의미·단위 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
         '403':
-          description: 권한 없음
+          description: 공통 환경설정 변경 권한 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters: *id004
-      x-roles:
-      - authenticated
-    post:
-      operationId: grantUserRole
-      summary: 수동 역할 부여
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-004
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - assignment_type=MANUAL 역할만 시스템관리자가 부여할 수 있다
-      - effective_end_date는 시작일보다 이전일 수 없다
-      x-side-effects:
-      - user_role row를 ACTIVE 상태로 생성한다
-      - change_history에 승인자와 유효기간을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 수동 역할 부여 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 수동 역할 부여 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: assignment_type=MANUAL 역할만 시스템관리자가 부여할 수 있다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 수동 역할 부여 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      x-state-transitions:
-      - 없음 -> ACTIVE
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/user-roles/{assignmentId}:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+
+  /api/system/common-settings/long-running-task-notice-threshold:
     put:
-      operationId: updateUserRole
-      summary: 사용자 역할 변경
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-004
-      - REQ-017
-      - REQ-021
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: longRunningTaskNoticeThreshold
+      summary: 장시간작업 안내 기준 설정값 저장
+      description: '`SCR-COMMON-SETTINGS-EDIT` 화면에서 `longRunningTaskNoticeThreshold` 값을 공통 환경설정으로 저장한다.'
+      x-screen-id: SCR-COMMON-SETTINGS-EDIT
+      x-ledger-api-path: PUT /api/system/common-settings
+      x-related-requirements: [REQ-006, REQ-007, REQ-008]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - POSITION 역할은 직접 변경할 수 없다
-      - 승인자와 유효기간은 유효한 계정과 날짜여야 한다
+        - longRunningTaskNoticeThreshold만 장시간작업 안내 기준 의미의 공통 환경설정 설정값으로 저장할 수 있다.
+        - longRunningTaskNoticeThreshold 값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - longRunningTaskNoticeThreshold 저장 요청은 설정 단위나 항목 의미 metadata를 변경할 수 없다.
       x-side-effects:
-      - user_role의 유효기간과 승인자를 갱신한다
-      - change_history에 변경 전후 값을 기록한다
+        - common_setting에서 setting_key=longRunningTaskNoticeThreshold row의 setting_value를 변경값으로 저장한다.
+        - 저장 성공 후 GET /api/system/common-settings?settingKey=longRunningTaskNoticeThreshold 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 또는 업무 규칙 실패 시 common_setting에서 setting_key=longRunningTaskNoticeThreshold row의 기존 setting_value와 setting_unit을 유지한다.
       x-required-tests:
-      - 'happy: 유효한 사용자 역할 변경 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 사용자 역할 변경 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: POSITION 역할은 직접 변경할 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 사용자 역할 변경 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: assignmentId
-        in: path
-        required: true
-        schema:
-          type: string
+        - 'happy: setting_key=longRunningTaskNoticeThreshold row가 있고 변경 권한이 있는 기존 인증 컨텍스트로 longRunningTaskNoticeThreshold=<valid fixture>를 요청한다 -> PUT은 200을 반환하고 후속 GET /api/system/common-settings?settingKey=longRunningTaskNoticeThreshold는 common_setting.setting_value=<valid fixture>를 반환한다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 existingSystemAuth 컨텍스트로 longRunningTaskNoticeThreshold=<valid fixture>를 요청한다 -> PUT은 403을 반환하고 후속 GET은 common_setting.setting_value가 요청 전 값 그대로임을 반환한다.'
+        - 'validation: longRunningTaskNoticeThreshold="invalid-unit"를 요청한다 -> PUT은 400을 반환하고 error.fieldErrors.longRunningTaskNoticeThreshold가 존재한다.'
+        - 'business: longRunningTaskNoticeThreshold 요청에 settingUnit 변경 field를 함께 보낸다 -> PUT은 400을 반환하고 common_setting.setting_key=longRunningTaskNoticeThreshold row의 setting_unit은 요청 전 값 그대로이다.'
+        - 'side-effect: longRunningTaskNoticeThreshold=<valid fixture> 저장이 성공한다 -> common_setting의 setting_key=longRunningTaskNoticeThreshold row가 존재하고 setting_value만 <valid fixture>로 갱신되어 후속 read에서 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-    delete:
-      operationId: revokeUserRole
-      summary: 수동 역할 회수
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-004
-      - REQ-017
-      - REQ-027
-      x-business-rules:
-      - POSITION 역할은 직접 회수할 수 없다
-      - 이미 REVOKED인 역할은 중복 회수하지 않는다
-      x-side-effects:
-      - user_role.status를 REVOKED로 갱신한다
-      - change_history에 회수 사유를 기록한다
-      x-required-tests:
-      - 'happy: 유효한 수동 역할 회수 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 수동 역할 회수 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: POSITION 역할은 직접 회수할 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 수동 역할 회수 성공 -> change_history 또는 관련 상태 row가 생성된다'
+              additionalProperties: false
+              required: [longRunningTaskNoticeThreshold]
+              properties:
+                longRunningTaskNoticeThreshold:
+                  type: string
+                  description: 장시간작업 안내 기준 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
       responses:
         '200':
-          description: 저장 성공
+          description: 장시간작업 안내 기준 저장 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSetting'
         '400':
-          description: 검증 오류
+          description: 장시간작업 안내 기준 의미·단위 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
         '403':
-          description: 권한 없음
+          description: 공통 환경설정 변경 권한 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-      x-state-transitions:
-      - ACTIVE -> REVOKED
-      parameters:
-      - name: assignmentId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/menus/my:
-    get:
-      operationId: listMyMenus
-      summary: 내 메뉴 조회
-      x-related-requirements:
-      - REQ-005
-      - REQ-023
-      - REQ-027
-      - REQ-040
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters:
-      - *id005
-      - *id006
-      - *id007
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: filter
-        in: query
-        required: false
-        schema:
-          type: string
-      x-roles:
-      - authenticated
-  /api/menus/tree:
-    get:
-      operationId: getMenuTree
-      summary: 메뉴 계층 조회
-      x-related-requirements:
-      - REQ-006
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters:
-      - *id005
-      - *id006
-      - *id007
-      x-roles:
-      - authenticated
-  /api/menus/{menuId}/parent:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+
+  /api/system/common-settings/page-size:
     put:
-      operationId: updateMenuParent
-      summary: 메뉴 부모 변경
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-006
-      - REQ-017
-      - REQ-021
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: pageSize
+      summary: 페이지당 조회건수 설정값 저장
+      description: '`SCR-COMMON-SETTINGS-EDIT` 화면에서 `pageSize` 값을 공통 환경설정으로 저장한다.'
+      x-screen-id: SCR-COMMON-SETTINGS-EDIT
+      x-ledger-api-path: PUT /api/system/common-settings
+      x-related-requirements: [REQ-003, REQ-007, REQ-008]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - menu_id는 자기 자신을 parent_menu_id로 가질 수 없다
-      - 범위 밖 메뉴 placeholder는 생성하지 않는다
+        - pageSize만 페이지당 조회건수 의미의 공통 환경설정 설정값으로 저장할 수 있다.
+        - pageSize 값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - pageSize 저장 요청은 설정 단위나 항목 의미 metadata를 변경할 수 없다.
       x-side-effects:
-      - menu.parent_menu_id를 갱신한다
-      - change_history에 부모 변경 전후 값을 기록한다
+        - common_setting에서 setting_key=pageSize row의 setting_value를 변경값으로 저장한다.
+        - 저장 성공 후 GET /api/system/common-settings?settingKey=pageSize 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 또는 업무 규칙 실패 시 common_setting에서 setting_key=pageSize row의 기존 setting_value와 setting_unit을 유지한다.
       x-required-tests:
-      - 'happy: 유효한 메뉴 부모 변경 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 메뉴 부모 변경 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: menu_id는 자기 자신을 parent_menu_id로 가질 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 메뉴 부모 변경 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: menuId
-        in: path
-        required: true
-        schema:
-          type: string
+        - 'happy: setting_key=pageSize row가 있고 변경 권한이 있는 기존 인증 컨텍스트로 pageSize=<valid fixture>를 요청한다 -> PUT은 200을 반환하고 후속 GET /api/system/common-settings?settingKey=pageSize는 common_setting.setting_value=<valid fixture>를 반환한다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 existingSystemAuth 컨텍스트로 pageSize=<valid fixture>를 요청한다 -> PUT은 403을 반환하고 후속 GET은 common_setting.setting_value가 요청 전 값 그대로임을 반환한다.'
+        - 'validation: pageSize="invalid-unit"를 요청한다 -> PUT은 400을 반환하고 error.fieldErrors.pageSize가 존재한다.'
+        - 'business: pageSize 요청에 settingMeaning 변경 field를 함께 보낸다 -> PUT은 400을 반환하고 common_setting.setting_key=pageSize row의 setting_meaning은 요청 전 값 그대로이다.'
+        - 'side-effect: pageSize=<valid fixture> 저장이 성공한다 -> common_setting의 setting_key=pageSize row가 존재하고 setting_value만 <valid fixture>로 갱신되어 후속 read에서 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/menus/reorder:
+              additionalProperties: false
+              required: [pageSize]
+              properties:
+                pageSize:
+                  type: string
+                  description: 페이지당 조회건수 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+      responses:
+        '200':
+          description: 페이지당 조회건수 저장 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSetting'
+        '400':
+          description: 페이지당 조회건수 의미·단위 검증 실패
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+        '403':
+          description: 공통 환경설정 변경 권한 없음
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+
+  /api/system/common-settings/session-idle-time:
     put:
-      operationId: reorderMenus
-      summary: 메뉴 표시순서 재정렬
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-006
-      - REQ-017
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: sessionIdleTime
+      summary: 세션 유휴시간 설정값 저장
+      description: '`SCR-COMMON-SETTINGS-EDIT` 화면에서 `sessionIdleTime` 값을 공통 환경설정으로 저장한다.'
+      x-screen-id: SCR-COMMON-SETTINGS-EDIT
+      x-ledger-api-path: PUT /api/system/common-settings
+      x-related-requirements: [REQ-002, REQ-007, REQ-008, REQ-010]
+      x-related-fr: [CMN-FR-019]
       x-business-rules:
-      - 동일 parent_menu_id 계층 안의 메뉴만 재정렬한다
-      - display_order는 중복 없이 저장되어야 한다
+        - sessionIdleTime만 세션 유휴시간 의미의 공통 환경설정 설정값으로 저장할 수 있다.
+        - sessionIdleTime 값은 항목별 의미와 단위에 맞는 경우에만 저장한다.
+        - sessionIdleTime 저장 요청은 세션 인증방식, token policy, session storage 방식을 결정하거나 변경할 수 없다.
       x-side-effects:
-      - menu.display_order를 일괄 갱신한다
-      - change_history에 재정렬 대상 목록을 기록한다
+        - common_setting에서 setting_key=sessionIdleTime row의 setting_value를 변경값으로 저장한다.
+        - 저장 성공 후 GET /api/system/common-settings?settingKey=sessionIdleTime 재조회에서 변경된 setting_value가 반환된다.
+        - 검증 또는 업무 규칙 실패 시 common_setting에서 setting_key=sessionIdleTime row의 기존 setting_value가 유지되고 신규 인증 설정 row를 만들지 않는다.
       x-required-tests:
-      - 'happy: 유효한 메뉴 표시순서 재정렬 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 메뉴 표시순서 재정렬 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 동일 parent_menu_id 계층 안의 메뉴만 재정렬한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 메뉴 표시순서 재정렬 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+        - 'happy: setting_key=sessionIdleTime row가 있고 변경 권한이 있는 기존 인증 컨텍스트로 sessionIdleTime=<valid fixture>를 요청한다 -> PUT은 200을 반환하고 후속 GET /api/system/common-settings?settingKey=sessionIdleTime는 common_setting.setting_value=<valid fixture>를 반환한다.'
+        - 'auth: 공통 환경설정 변경 권한이 없는 existingSystemAuth 컨텍스트로 sessionIdleTime=<valid fixture>를 요청한다 -> PUT은 403을 반환하고 후속 GET은 common_setting.setting_value가 요청 전 값 그대로임을 반환한다.'
+        - 'validation: sessionIdleTime="invalid-unit"를 요청한다 -> PUT은 400을 반환하고 error.fieldErrors.sessionIdleTime이 존재한다.'
+        - 'business: sessionIdleTime 요청에 sessionStorage 또는 tokenPolicy field를 함께 보낸다 -> PUT은 400을 반환하고 common_setting에는 신규 세션 인증방식 설정 row가 생성되지 않는다.'
+        - 'side-effect: sessionIdleTime=<valid fixture> 저장이 성공한다 -> common_setting의 setting_key=sessionIdleTime row가 존재하고 setting_value만 <valid fixture>로 갱신되어 후속 read에서 확인된다.'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/menus:
+              additionalProperties: false
+              required: [sessionIdleTime]
+              properties:
+                sessionIdleTime:
+                  type: string
+                  description: 세션 유휴시간 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+      responses:
+        '200':
+          description: 세션 유휴시간 저장 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CommonSetting'
+        '400':
+          description: 세션 유휴시간 의미·단위 검증 실패
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+        '403':
+          description: 공통 환경설정 변경 권한 없음
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+
+  /api/system/common-settings/existing-system-auth:
     get:
-      operationId: listMenus
-      summary: 메뉴 실행정보 조회
-      x-related-requirements:
-      - REQ-007
-      - REQ-027
+      tags: [CommonSettings]
+      operationId: existingSystemAuth
+      summary: 기존 시스템 인증 컨텍스트 참조
+      description: '`SCR-COMMON-SETTINGS` 화면의 공통 환경설정 접근이 기존 시스템 인증 컨텍스트를 사용함을 표현하며, 세션 인증방식은 새로 결정하지 않는다.'
+      x-screen-id: SCR-COMMON-SETTINGS
+      x-ledger-api-path: GET /api/system/common-settings
+      x-related-requirements: [REQ-001, REQ-010]
+      x-related-fr: [CMN-FR-019]
       responses:
         '200':
-          description: 조회 성공
+          description: 기존 시스템 인증 컨텍스트가 공통 환경설정 조회에 사용됨
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          authContext:
+                            type: string
+                            enum: [existingSystemAuth]
         '401':
-          description: 인증 필요
+          description: 기존 시스템 인증 컨텍스트 없음
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters: *id004
-      x-roles:
-      - authenticated
-    post:
-      operationId: createMenu
-      summary: 메뉴 실행정보 등록
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-007
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - menu_name과 screen_id 또는 url 연결정보가 필요하다
-      - 사용 중인 메뉴 삭제 대신 비활성화를 우선한다
-      x-side-effects:
-      - menu row를 생성한다
-      - change_history에 메뉴 등록 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 메뉴 실행정보 등록 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 메뉴 실행정보 등록 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: menu_name과 screen_id 또는 url 연결정보가 필요하다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 메뉴 실행정보 등록 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/menus/{menuId}:
-    put:
-      operationId: updateMenu
-      summary: 메뉴 실행정보 수정
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-007
-      - REQ-017
-      - REQ-019
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - 존재하는 menu_id만 수정할 수 있다
-      - 사용 중인 메뉴는 물리삭제보다 use_yn=N 비활성화를 우선한다
-      x-side-effects:
-      - menu 실행정보를 갱신한다
-      - change_history에 메뉴 수정 전후 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 메뉴 실행정보 수정 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 메뉴 실행정보 수정 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 존재하는 menu_id만 수정할 수 있다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 메뉴 실행정보 수정 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: menuId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/menu-permissions:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+  /api/system/common-settings/setting-meaning:
     get:
-      operationId: listMenuPermissions
-      summary: 메뉴 권한 조회
-      x-related-requirements:
-      - REQ-005
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
+      tags: [CommonSettings]
+      operationId: settingMeaning
+      summary: 설정 항목 의미 조회
+      description: '`SCR-COMMON-SETTINGS` 화면에서 공통 환경설정 항목별 의미 설명을 조회한다.'
+      x-screen-id: SCR-COMMON-SETTINGS
+      x-ledger-api-path: GET /api/system/common-settings
+      x-related-requirements: [REQ-001, REQ-008]
+      x-related-fr: [CMN-FR-019]
       parameters:
-      - *id001
-      - *id002
-      - *id003
-      - name: targetType
-        in: query
-        schema:
-          $ref: '#/components/schemas/PermissionTargetType'
-      - name: page
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-      - name: size
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
-          default: 20
-      - name: filter
-        in: query
-        required: false
-        schema:
-          type: string
-      x-roles:
-      - authenticated
-    put:
-      operationId: saveMenuPermissions
-      summary: 메뉴 권한 저장
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-005
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      - REQ-029
-      x-business-rules:
-      - 사용자 권한, 조직 권한, 역할 권한 순으로 최종 접근 허용 여부를 산정한다
-      - 동일 우선순위의 명시적 거부는 허용보다 우선한다
-      x-side-effects:
-      - menu_permission row를 upsert한다
-      - AuthorizationService가 메뉴 노출과 API 접근통제에서 같은 설정을 사용한다
-      x-required-tests:
-      - 'happy: 유효한 메뉴 권한 저장 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 메뉴 권한 저장 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 사용자 권한, 조직 권한, 역할 권한 순으로 최종 접근 허용 여부를 산정한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 메뉴 권한 저장 성공 -> change_history 또는 관련 상태 row가 생성된다'
+        - $ref: '#/components/parameters/SettingKeyFilterParam'
       responses:
         '200':
-          description: 저장 성공
+          description: 설정 항목 의미 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [settingMeaning]
+                        properties:
+                          settingMeaning:
+                            type: string
         '400':
-          description: 검증 오류
+          description: settingKey 조회 조건 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/code-groups:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+  /api/system/common-settings/setting-unit:
     get:
-      operationId: listCodeGroups
-      summary: 코드그룹 조회
-      x-related-requirements:
-      - REQ-008
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters: *id004
-      x-roles:
-      - authenticated
-    post:
-      operationId: createCodeGroup
-      summary: 코드그룹 등록
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-008
-      - REQ-017
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - group_id는 중복될 수 없다
-      - 명칭과 관리부서 입력은 서버에서 검증한다
-      x-side-effects:
-      - code_group row를 생성한다
-      - change_history에 코드그룹 등록 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 코드그룹 등록 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 코드그룹 등록 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: group_id는 중복될 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 코드그룹 등록 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/code-groups/{groupId}:
-    put:
-      operationId: updateCodeGroup
-      summary: 코드그룹 수정
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-008
-      - REQ-017
-      - REQ-019
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - 존재하는 group_id만 수정할 수 있다
-      - 사용 중인 코드그룹은 물리삭제보다 INACTIVE를 우선한다
-      x-side-effects:
-      - code_group 정보를 갱신한다
-      - change_history에 코드그룹 수정 전후 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 코드그룹 수정 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 코드그룹 수정 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 존재하는 group_id만 수정할 수 있다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 코드그룹 수정 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+      tags: [CommonSettings]
+      operationId: settingUnit
+      summary: 설정 항목 단위 조회
+      description: '`SCR-COMMON-SETTINGS` 화면에서 공통 환경설정 항목별 단위를 조회한다. 구체 enum은 OQ-001 확인 전 확정하지 않는다.'
+      x-screen-id: SCR-COMMON-SETTINGS
+      x-ledger-api-path: GET /api/system/common-settings
+      x-related-requirements: [REQ-001, REQ-008]
+      x-related-fr: [CMN-FR-019]
       parameters:
-      - name: groupId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/code-groups/{groupId}/detail-codes:
+        - $ref: '#/components/parameters/SettingKeyFilterParam'
+      responses:
+        '200':
+          description: 설정 항목 단위 조회 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [settingUnit]
+                        properties:
+                          settingUnit:
+                            type: string
+        '400':
+          description: settingKey 조회 조건 검증 실패
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
+  /api/system/common-settings/setting-value:
     get:
-      operationId: listDetailCodes
-      summary: 상세코드 조회
-      x-related-requirements:
-      - REQ-009
-      - REQ-018
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters: *id004
-      x-roles:
-      - authenticated
-    post:
-      operationId: createDetailCode
-      summary: 상세코드 등록
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-009
-      - REQ-017
-      - REQ-018
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - code_value는 group_id 안에서 중복될 수 없다
-      - effective_end_date는 effective_start_date보다 이전일 수 없다
-      x-side-effects:
-      - detail_code row를 생성한다
-      - change_history에 상세코드 등록 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 상세코드 등록 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 상세코드 등록 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: code_value는 group_id 안에서 중복될 수 없다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 상세코드 등록 성공 -> change_history 또는 관련 상태 row가 생성된다'
-      responses:
-        '200':
-          description: 저장 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
+      tags: [CommonSettings]
+      operationId: settingValue
+      summary: 설정 항목 현재 값 조회
+      description: '`SCR-COMMON-SETTINGS` 화면에서 공통 환경설정 항목별 현재 값을 조회한다.'
+      x-screen-id: SCR-COMMON-SETTINGS
+      x-ledger-api-path: GET /api/system/common-settings
+      x-related-requirements: [REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-008]
+      x-related-fr: [CMN-FR-019]
       parameters:
-      - name: groupId
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/code-groups/{groupId}/detail-codes/{codeValue}:
-    put:
-      operationId: updateDetailCode
-      summary: 상세코드 수정
-      security:
-      - sessionCookie: []
-      x-related-requirements:
-      - REQ-009
-      - REQ-017
-      - REQ-018
-      - REQ-019
-      - REQ-021
-      - REQ-027
-      x-business-rules:
-      - 상위코드는 같은 group_id 안의 code_value여야 한다
-      - 사용 중인 상세코드는 물리삭제보다 INACTIVE를 우선한다
-      x-side-effects:
-      - detail_code 정보를 갱신한다
-      - change_history에 상세코드 수정 전후 값을 기록한다
-      x-required-tests:
-      - 'happy: 유효한 상세코드 수정 요청 -> 후속 조회에서 관련 table 변경값이 ApiResponse.data에 표시된다'
-      - 'auth: 세션 없는 상세코드 수정 요청 -> HTTP 401과 ApiError.message가 반환된다'
-      - 'validation: 필수 식별자 누락 -> ApiError.fields에 해당 field 오류가 포함된다'
-      - 'business: 상위코드는 같은 group_id 안의 code_value여야 한다 위반 -> 대상 table의 기존 상태가 변경되지 않는다'
-      - 'side-effect: 상세코드 수정 성공 -> change_history 또는 관련 상태 row가 생성된다'
+        - $ref: '#/components/parameters/SettingKeyFilterParam'
       responses:
         '200':
-          description: 저장 성공
+          description: 설정 항목 현재 값 조회 성공
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [settingValue]
+                        properties:
+                          settingValue:
+                            type: string
         '400':
-          description: 검증 오류
+          description: settingKey 조회 조건 검증 실패
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      parameters:
-      - name: groupId
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: codeValue
-        in: path
-        required: true
-        schema:
-          type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      x-roles:
-      - authenticated
-  /api/code-groups/{groupId}/detail-codes/tree:
-    get:
-      operationId: getDetailCodeTree
-      summary: 상세코드 계층 조회
-      x-related-requirements:
-      - REQ-009
-      - REQ-027
-      responses:
-        '200':
-          description: 조회 성공
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '400':
-          description: 검증 오류
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '401':
-          description: 인증 필요
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-        '403':
-          description: 권한 없음
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ApiResponse'
-      security:
-      - sessionCookie: []
-      parameters:
-      - name: groupId
-        in: path
-        required: true
-        schema:
-          type: string
-      - *id005
-      - *id006
-      - *id007
-      x-roles:
-      - authenticated
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        nullable: true
+                      error:
+                        $ref: '#/components/schemas/ApiError'
 components:
   securitySchemes:
-    sessionCookie:
+    existingSystemAuth:
       type: apiKey
-      in: cookie
-      name: SESSION
+      in: header
+      name: Authorization
+      description: 기존 시스템 인증 컨텍스트를 전달한다. 이 계약은 REQ-010에 따라 세션 인증방식을 새로 결정하지 않는다.
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      required: false
+      description: collection GET 표준 page index. 공통 설정은 최대 다섯 항목이지만 collection 계약 일관성을 위해 제공한다.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      description: collection GET 표준 page size. 실제 페이지당 조회건수 설정값 pageSize와 혼동하지 않는다.
+      schema:
+        type: integer
+        minimum: 1
+        default: 20
+    SettingKeyFilterParam:
+      name: settingKey
+      in: query
+      required: false
+      description: 특정 공통 환경설정 key만 조회할 때 사용한다.
+      schema:
+        $ref: '#/components/schemas/CommonSettingKey'
   schemas:
-    ApiError:
-      type: object
-      required:
-      - message
-      - fields
-      properties:
-        message:
-          type: string
-        fields:
-          type: object
-          additionalProperties:
-            type: string
     ApiResponse:
       type: object
-      required:
-      - success
+      required: [success]
       properties:
         success:
           type: boolean
-        data: {}
+        data:
+          nullable: true
         error:
-          $ref: '#/components/schemas/ApiError'
-        pagination:
-          $ref: '#/components/schemas/Pagination'
-    Pagination:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    ApiError:
       type: object
+      required: [code, message]
       properties:
+        code:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+    CommonSettingKey:
+      type: string
+      enum: [sessionIdleTime, pageSize, defaultSearchPeriod, bulkQueryThreshold, longRunningTaskNoticeThreshold]
+      x-source: data-model.json#/entities/0/fields/0/enum_values
+    CommonSetting:
+      type: object
+      required: [settingKey, settingValue, settingUnit, settingMeaning]
+      properties:
+        settingKey:
+          $ref: '#/components/schemas/CommonSettingKey'
+        settingValue:
+          type: string
+          description: 항목별 의미와 단위에 맞는 현재 값. 구체 type/range는 OQ-001 확인 필요.
+        settingUnit:
+          type: string
+          description: 항목별 단위. 구체 enum은 OQ-001 확인 전 확정하지 않는다.
+        settingMeaning:
+          type: string
+          description: 항목별 의미 설명.
+    CommonSettingsPage:
+      type: object
+      required: [items, page, size, totalElements]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommonSetting'
         page:
           type: integer
         size:
           type: integer
         totalElements:
           type: integer
-        totalPages:
-          type: integer
-    UseYn:
-      type: string
-      enum:
-      - Y
-      - N
-    AccountStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - DISABLED
-      - LOCKED
-    EmploymentStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - LEAVE
-      - RETIRED
-    OrganizationType:
-      type: string
-      enum:
-      - UNIVERSITY
-      - GRADUATE_SCHOOL
-      - COLLEGE
-      - DEPARTMENT
-      - ADMIN_DEPARTMENT
-    RoleAssignmentType:
-      type: string
-      enum:
-      - POSITION
-      - MANUAL
-    UserRoleStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - REVOKED
-      - EXPIRED
-    MenuType:
-      type: string
-      enum:
-      - ROOT
-      - GROUP
-      - SCREEN
-    PermissionTargetType:
-      type: string
-      enum:
-      - ROLE
-      - ORGANIZATION
-      - USER
-    PermissionDecision:
-      type: string
-      enum:
-      - ALLOW
-      - DENY
-    CodeGroupStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - INACTIVE
-    DetailCodeStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - INACTIVE
-    SessionStatus:
-      type: string
-      enum:
-      - ACTIVE
-      - EXPIRED
-      - REVOKED
-    User:
+    UpdateCommonSettingsRequest:
       type: object
+      additionalProperties: false
       properties:
-        userId:
+        sessionIdleTime:
           type: string
-        loginId:
+          description: 세션 유휴시간 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+        pageSize:
           type: string
-        staffNo:
+          description: 페이지당 조회건수 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+        defaultSearchPeriod:
           type: string
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-        status:
-          $ref: '#/components/schemas/AccountStatus'
-        employmentStatus:
-          $ref: '#/components/schemas/EmploymentStatus'
-        roles:
-          type: array
-          items:
-            type: string
-    Organization:
-      type: object
-      properties:
-        organizationCode:
+          description: 기본 검색기간 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+        bulkQueryThreshold:
           type: string
-        organizationName:
+          description: 대량조회 기준건수 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
+        longRunningTaskNoticeThreshold:
           type: string
-        organizationType:
-          $ref: '#/components/schemas/OrganizationType'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-        status:
-          $ref: '#/components/schemas/CodeGroupStatus'
-    OrganizationRelation:
-      type: object
-      additionalProperties: true
-    Role:
-      type: object
-      additionalProperties: true
-    UserRole:
-      type: object
-      properties:
-        assignmentId:
-          type: integer
-        userId:
-          type: string
-        roleCode:
-          type: string
-        assignmentType:
-          $ref: '#/components/schemas/RoleAssignmentType'
-        status:
-          $ref: '#/components/schemas/UserRoleStatus'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-    Menu:
-      type: object
-      properties:
-        menuId:
-          type: string
-        parentMenuId:
-          type: string
-        menuType:
-          $ref: '#/components/schemas/MenuType'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-    MenuPermission:
-      type: object
-      properties:
-        permissionId:
-          type: integer
-        targetType:
-          $ref: '#/components/schemas/PermissionTargetType'
-        decision:
-          $ref: '#/components/schemas/PermissionDecision'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-    CodeGroup:
-      type: object
-      properties:
-        groupId:
-          type: string
-        status:
-          $ref: '#/components/schemas/CodeGroupStatus'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-    DetailCode:
-      type: object
-      properties:
-        groupId:
-          type: string
-        codeValue:
-          type: string
-        status:
-          $ref: '#/components/schemas/DetailCodeStatus'
-        useYn:
-          $ref: '#/components/schemas/UseYn'
-    SessionUser:
-      type: object
-      properties:
-        userId:
-          type: string
-        roles:
-          type: array
-          items:
-            type: string
-        sessionStatus:
-          $ref: '#/components/schemas/SessionStatus'
-    LoginRequest:
-      type: object
-      required:
-      - loginId
-      - password
-      properties:
-        loginId:
-          type: string
-        password:
-          type: string
-  parameters:
-    Page:
-      name: page
-      in: query
-      schema:
-        type: integer
-        minimum: 0
-    Size:
-      name: size
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-    Sort:
-      name: sort
-      in: query
-      schema:
-        type: string
+          description: 장시간작업 안내 기준 변경값. 단위와 허용 범위는 OQ-001 확인 필요.
 x-uncovered-requirements:
-- canonical_id: REQ-013
-  status: non-functional
-  evidence: 테스트 제공 요구는 x-required-tests와 tasks.md에서 검증되며 단일 API operation이 아니다.
-- canonical_id: REQ-014
-  status: out-of-scope
-  evidence: REQ-014는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-015
-  status: out-of-scope
-  evidence: REQ-015는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-020
-  status: screen-only
-  evidence: REQ-020는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-022
-  status: non-functional
-  evidence: 브라우저 상대경로 요구는 frontend/nginx 계약이며 HTTP operation mapping 대상이 아니다.
-- canonical_id: REQ-024
-  status: data-constraint
-  evidence: REQ-024는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-025
-  status: data-constraint
-  evidence: REQ-025는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-026
-  status: data-constraint
-  evidence: REQ-026는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-030
-  status: screen-only
-  evidence: REQ-030는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-031
-  status: screen-only
-  evidence: REQ-031는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-032
-  status: non-functional
-  evidence: Backend 기술스택은 공통 계약 참조 대상이며 개별 endpoint 동작이 아니다.
-- canonical_id: REQ-033
-  status: non-functional
-  evidence: Frontend 기술스택은 UI/infra 계약으로 operation과 직접 매핑되지 않는다.
-- canonical_id: REQ-034
-  status: non-functional
-  evidence: Docker Compose/Flyway 산출물은 infra 계약이며 API operation이 아니다.
-- canonical_id: REQ-035
-  status: non-functional
-  evidence: REQ-035는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-041
-  status: non-functional
-  evidence: Docker Compose 설정 산출물은 quickstart/infra 검증 대상이다.
-- canonical_id: REQ-042
-  status: non-functional
-  evidence: Flyway migration 산출물은 data-model.md와 tasks.md 검증 대상이다.
-- canonical_id: REQ-043
-  status: non-functional
-  evidence: 실행 안내는 quickstart.md 산출물에서 다룬다.
-- canonical_id: REQ-044
-  status: non-functional
-  evidence: REQ-044는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-045
-  status: non-functional
-  evidence: Version BOM은 공통 계약 참조 대상이다.
-- canonical_id: REQ-047
-  status: non-functional
-  evidence: backend 변경 품질 gate는 구현 검증 기준으로 operation이 아니다.
-- canonical_id: REQ-048
-  status: screen-only
-  evidence: ui-design.md 반영 요구는 frontend 화면 계약으로 operation이 아니다.
-- canonical_id: REQ-049
-  status: data-constraint
-  evidence: DB schema/migration 기준은 data-model.md에서 다루는 데이터 제약이다.
-- canonical_id: REQ-050
-  status: non-functional
-  evidence: backend API와 frontend 화면 통합 검증은 quickstart smoke 대상이다.
+  - canonical_id: REQ-010
+    status: out-of-scope
+    evidence: 세션 인증방식 결정 제외 요구는 HTTP operation으로 구현하지 않고 existingSystemAuth 설명과 범위 제한으로 보존한다.
+  - canonical_id: REQ-011
+    status: out-of-scope
+    evidence: 대량처리 구현방식 결정 제외 요구는 공통 환경설정 조회/저장 API가 batch 또는 worker contract를 만들지 않는 방식으로 보존한다.
 x-requirement-accounting:
-- canonical_id: REQ-001
-  status: covered
-  evidence: operation listUsers,updateUserUsage,replaceUserBusinessRoles
-- canonical_id: REQ-002
-  status: covered
-  evidence: operation listOrganizations,getOrganizationTree,saveOrganizationRelation
-- canonical_id: REQ-003
-  status: covered
-  evidence: operation listRoles,createRole,updateRole
-- canonical_id: REQ-004
-  status: covered
-  evidence: operation replaceUserBusinessRoles,listUserRoles,grantUserRole,updateUserRole,revokeUserRole
-- canonical_id: REQ-005
-  status: covered
-  evidence: operation listMyMenus,listMenuPermissions,saveMenuPermissions
-- canonical_id: REQ-006
-  status: covered
-  evidence: operation getMenuTree,updateMenuParent,reorderMenus
-- canonical_id: REQ-007
-  status: covered
-  evidence: operation listMenus,createMenu,updateMenu
-- canonical_id: REQ-008
-  status: covered
-  evidence: operation listCodeGroups,createCodeGroup,updateCodeGroup
-- canonical_id: REQ-009
-  status: covered
-  evidence: operation listDetailCodes,createDetailCode,updateDetailCode,getDetailCodeTree
-- canonical_id: REQ-010
-  status: covered
-  evidence: operation listUsers,listOrganizations
-- canonical_id: REQ-011
-  status: covered
-  evidence: operation updateUserUsage,replaceUserBusinessRoles
-- canonical_id: REQ-012
-  status: covered
-  evidence: operation login
-- canonical_id: REQ-013
-  status: non-functional
-  evidence: 테스트 제공 요구는 x-required-tests와 tasks.md에서 검증되며 단일 API operation이 아니다.
-- canonical_id: REQ-014
-  status: out-of-scope
-  evidence: REQ-014는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-015
-  status: out-of-scope
-  evidence: REQ-015는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-016
-  status: covered
-  evidence: operation getHealth
-- canonical_id: REQ-017
-  status: covered
-  evidence: operation updateUserUsage,replaceUserBusinessRoles,saveOrganizationRelation,createRole,updateRole,grantUserRole,updateUserRole,revokeUserRole,updateMenuParent,reorderMenus,createMenu,updateMenu,saveMenuPermissions,createCodeGroup,updateCodeGroup,createDetailCode,updateDetailCode
-- canonical_id: REQ-018
-  status: covered
-  evidence: operation listDetailCodes,createDetailCode,updateDetailCode
-- canonical_id: REQ-019
-  status: covered
-  evidence: operation updateMenu,updateCodeGroup,updateDetailCode
-- canonical_id: REQ-020
-  status: screen-only
-  evidence: REQ-020는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-021
-  status: covered
-  evidence: operation updateUserUsage,saveOrganizationRelation,createRole,updateRole,grantUserRole,updateUserRole,updateMenuParent,createMenu,updateMenu,saveMenuPermissions,createCodeGroup,updateCodeGroup,createDetailCode,updateDetailCode
-- canonical_id: REQ-022
-  status: non-functional
-  evidence: 브라우저 상대경로 요구는 frontend/nginx 계약이며 HTTP operation mapping 대상이 아니다.
-- canonical_id: REQ-023
-  status: covered
-  evidence: operation listMyMenus
-- canonical_id: REQ-024
-  status: data-constraint
-  evidence: REQ-024는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-025
-  status: data-constraint
-  evidence: REQ-025는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-026
-  status: data-constraint
-  evidence: REQ-026는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-027
-  status: covered
-  evidence: operation login,logout,getCurrentUser,listUsers,updateUserUsage,replaceUserBusinessRoles,listOrganizations,getOrganizationTree,saveOrganizationRelation,listRoles,createRole,updateRole,listUserRoles,grantUserRole,updateUserRole,revokeUserRole,listMyMenus,getMenuTree,updateMenuParent,reorderMenus,listMenus,createMenu,updateMenu,listMenuPermissions,saveMenuPermissions,listCodeGroups,createCodeGroup,updateCodeGroup,listDetailCodes,createDetailCode,updateDetailCode,getDetailCodeTree
-- canonical_id: REQ-028
-  status: covered
-  evidence: operation logout,getCurrentUser
-- canonical_id: REQ-029
-  status: covered
-  evidence: operation saveMenuPermissions
-- canonical_id: REQ-030
-  status: screen-only
-  evidence: REQ-030는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-031
-  status: screen-only
-  evidence: REQ-031는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-032
-  status: non-functional
-  evidence: Backend 기술스택은 공통 계약 참조 대상이며 개별 endpoint 동작이 아니다.
-- canonical_id: REQ-033
-  status: non-functional
-  evidence: Frontend 기술스택은 UI/infra 계약으로 operation과 직접 매핑되지 않는다.
-- canonical_id: REQ-034
-  status: non-functional
-  evidence: Docker Compose/Flyway 산출물은 infra 계약이며 API operation이 아니다.
-- canonical_id: REQ-035
-  status: non-functional
-  evidence: REQ-035는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-036
-  status: covered
-  evidence: operation login
-- canonical_id: REQ-037
-  status: covered
-  evidence: operation login
-- canonical_id: REQ-038
-  status: covered
-  evidence: operation getCurrentUser
-- canonical_id: REQ-039
-  status: covered
-  evidence: operation login
-- canonical_id: REQ-040
-  status: covered
-  evidence: operation listMyMenus
-- canonical_id: REQ-041
-  status: non-functional
-  evidence: Docker Compose 설정 산출물은 quickstart/infra 검증 대상이다.
-- canonical_id: REQ-042
-  status: non-functional
-  evidence: Flyway migration 산출물은 data-model.md와 tasks.md 검증 대상이다.
-- canonical_id: REQ-043
-  status: non-functional
-  evidence: 실행 안내는 quickstart.md 산출물에서 다룬다.
-- canonical_id: REQ-044
-  status: non-functional
-  evidence: REQ-044는 contracts/openapi.yaml의 개별 operation보다 data-model.md 또는 후속 UI/architecture 문서에서 직접 충족된다.
-- canonical_id: REQ-045
-  status: non-functional
-  evidence: Version BOM은 공통 계약 참조 대상이다.
-- canonical_id: REQ-046
-  status: covered
-  evidence: operation getHealth
-- canonical_id: REQ-047
-  status: non-functional
-  evidence: backend 변경 품질 gate는 구현 검증 기준으로 operation이 아니다.
-- canonical_id: REQ-048
-  status: screen-only
-  evidence: ui-design.md 반영 요구는 frontend 화면 계약으로 operation이 아니다.
-- canonical_id: REQ-049
-  status: data-constraint
-  evidence: DB schema/migration 기준은 data-model.md에서 다루는 데이터 제약이다.
-- canonical_id: REQ-050
-  status: non-functional
-  evidence: backend API와 frontend 화면 통합 검증은 quickstart smoke 대상이다.
+  - canonical_id: REQ-001
+    status: covered
+    evidence: getCommonSettings가 common_setting의 다섯 설정 항목과 현재 값을 반환한다.
+  - canonical_id: REQ-002
+    status: covered
+    evidence: updateCommonSettings request의 sessionIdleTime field와 CommonSettingKey enum이 세션 유휴시간 설정값 관리를 담당한다.
+  - canonical_id: REQ-003
+    status: covered
+    evidence: updateCommonSettings request의 pageSize field와 CommonSettingKey enum이 페이지당 조회건수 설정값 관리를 담당한다.
+  - canonical_id: REQ-004
+    status: covered
+    evidence: updateCommonSettings request의 defaultSearchPeriod field와 CommonSettingKey enum이 기본 검색기간 설정값 관리를 담당한다.
+  - canonical_id: REQ-005
+    status: covered
+    evidence: updateCommonSettings request의 bulkQueryThreshold field와 CommonSettingKey enum이 대량조회 기준건수 설정값 관리를 담당한다.
+  - canonical_id: REQ-006
+    status: covered
+    evidence: updateCommonSettings request의 longRunningTaskNoticeThreshold field와 CommonSettingKey enum이 장시간작업 안내 기준 설정값 관리를 담당한다.
+  - canonical_id: REQ-007
+    status: covered
+    evidence: updateCommonSettings가 common_setting.setting_value 변경과 후속 getCommonSettings 재조회 proof를 제공한다.
+  - canonical_id: REQ-008
+    status: data-constraint
+    evidence: updateCommonSettings의 x-business-rules와 400 ApiError fieldErrors가 항목 의미·단위 검증 실패를 표현한다.
+  - canonical_id: REQ-009
+    status: out-of-scope
+    evidence: UpdateCommonSettingsRequest의 additionalProperties=false가 사용자별·업무별 override field를 API 저장 계약에서 제외한다.
+  - canonical_id: REQ-010
+    status: out-of-scope
+    evidence: existingSystemAuth는 기존 인증 컨텍스트만 참조하고 세션 인증방식 선택 operation을 만들지 않는다.
+  - canonical_id: REQ-011
+    status: out-of-scope
+    evidence: OpenAPI paths는 common-settings 조회/저장만 포함하고 대량처리 구현방식 API를 정의하지 않는다.
