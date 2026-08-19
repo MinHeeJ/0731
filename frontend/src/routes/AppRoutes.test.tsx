@@ -29,18 +29,25 @@ describe("AppRoutes navigation shell", () => {
     }) as never;
 
     render(
-      <MemoryRouter initialEntries={["/system/roles"]}>
+      <MemoryRouter initialEntries={["/system/common-settings"]}>
         <AuthProvider>
           <AppRoutes />
         </AuthProvider>
       </MemoryRouter>,
     );
 
-    const rolesLink = await screen.findByRole("link", { name: "역할 관리" });
-    expect(rolesLink).toHaveAttribute("href", "/system/roles");
-    await waitFor(() => expect(rolesLink.className).toContain("active"));
+    const commonSettingsLink = await screen.findByRole("link", {
+      name: "공통 환경설정",
+    });
+    expect(commonSettingsLink).toHaveAttribute(
+      "href",
+      "/system/common-settings",
+    );
+    await waitFor(() =>
+      expect(commonSettingsLink.className).toContain("active"),
+    );
     expect(
-      await screen.findByRole("heading", { name: "역할 관리" }),
+      await screen.findByRole("heading", { name: "공통 환경설정" }),
     ).toBeInTheDocument();
   });
 });
