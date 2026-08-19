@@ -27,6 +27,7 @@ public class HealthController {
             body.put("technologyStack", mapper.listTechnologyStack());
             body.put("versionBom", mapper.listVersionBom());
             body.put("requiredOutputs", mapper.listRequiredOutputs());
+            body.put("cms1401Scope", mapper.listCms1401Scope());
         }
         return ApiResponse.ok(body);
     }

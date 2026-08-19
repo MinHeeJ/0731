@@ -1848,6 +1848,107 @@ paths:
       - *id007
       x-roles:
       - authenticated
+  /api/system/common-settings:
+    get:
+      operationId: getCommonSettings
+      summary: 공통 환경설정 조회
+      security:
+      - sessionCookie: []
+      x-roles:
+      - R09
+      x-related-requirements:
+      - REQ-056
+      responses:
+        '200':
+          description: 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      parameters:
+      - $ref: '#/components/parameters/Page'
+      - $ref: '#/components/parameters/Size'
+      - $ref: '#/components/parameters/Sort'
+    put:
+      operationId: updateCommonSettings
+      summary: 공통 환경설정 저장
+      security:
+      - sessionCookie: []
+      x-roles:
+      - R09
+      x-related-requirements:
+      - REQ-051
+      - REQ-052
+      - REQ-053
+      - REQ-054
+      - REQ-055
+      - REQ-057
+      - REQ-058
+      - REQ-059
+      x-business-rules:
+      - 다섯 setting_key는 system_common_setting에 GLOBAL scope로 존재해야 한다
+      - 항목별 unit_code와 value_type에 맞지 않는 값은 저장하지 않는다
+      - 사용자별 또는 업무별 scope 입력은 허용하지 않는다
+      x-side-effects:
+      - system_common_setting.setting_value를 갱신한다
+      - change_history에 setting_key별 변경 전후 값을 기록한다
+      x-required-tests:
+      - 'happy: R09가 30/50/7/1000/60 설정 저장 -> 후속 GET에서 system_common_setting.setting_value가 30/50/7/1000/60으로 반환된다'
+      - 'auth: R09가 아닌 authenticated 사용자가 저장 요청 -> HTTP 403과 system_common_setting 기존 값이 유지된다'
+      - 'validation: sessionIdleMinutes=abc 저장 요청 -> HTTP 400과 ApiError.fields.sessionIdleMinutes가 반환된다'
+      - 'business: userId가 포함된 사용자별 설정 요청 -> HTTP 400이고 system_common_setting.scope_type은 GLOBAL만 남는다'
+      - 'side-effect: 공통 환경설정 저장 성공 -> change_history.entity_name=system_common_setting row가 생성된다'
+      x-state-transitions:
+      - GLOBAL 설정값 이전값 -> GLOBAL 설정값 신규값
+      responses:
+        '200':
+          description: 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: 검증 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          description: 인증 필요
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '403':
+          description: 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommonSettingsUpdateRequest'
 components:
   securitySchemes:
     sessionCookie:
@@ -2075,6 +2176,52 @@ components:
           type: string
         password:
           type: string
+    CommonSettingItem:
+      type: object
+      properties:
+        settingKey:
+          type: string
+        settingName:
+          type: string
+        settingValue:
+          type: string
+        valueType:
+          type: string
+          enum:
+          - INTEGER
+        unitCode:
+          type: string
+          enum:
+          - MINUTE
+          - COUNT
+          - DAY
+          - SECOND
+        scopeType:
+          type: string
+          enum:
+          - GLOBAL
+    CommonSettingsUpdateRequest:
+      type: object
+      required:
+      - sessionIdleMinutes
+      - pageSize
+      - defaultSearchPeriodDays
+      - bulkQueryThresholdCount
+      - longRunningTaskNoticeSeconds
+      properties:
+        sessionIdleMinutes:
+          type: integer
+        pageSize:
+          type: integer
+        defaultSearchPeriodDays:
+          type: integer
+        bulkQueryThresholdCount:
+          type: integer
+        longRunningTaskNoticeSeconds:
+          type: integer
+        changeReason:
+          type: string
+          maxLength: 500
   parameters:
     Page:
       name: page
@@ -2095,6 +2242,9 @@ components:
       schema:
         type: string
 x-uncovered-requirements:
+- canonical_id: REQ-060
+  status: out-of-scope
+  evidence: 신규 인증방식과 대량처리 구현방식은 공통 환경설정 저장 범위 밖이며 operation을 만들지 않는다.
 - canonical_id: REQ-013
   status: non-functional
   evidence: 테스트 제공 요구는 x-required-tests와 tasks.md에서 검증되며 단일 API operation이 아니다.
@@ -2165,6 +2315,36 @@ x-uncovered-requirements:
   status: non-functional
   evidence: backend API와 frontend 화면 통합 검증은 quickstart smoke 대상이다.
 x-requirement-accounting:
+- canonical_id: REQ-051
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-052
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-053
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-054
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-055
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-056
+  status: covered
+  evidence: operation getCommonSettings
+- canonical_id: REQ-057
+  status: covered
+  evidence: operation updateCommonSettings
+- canonical_id: REQ-058
+  status: data-constraint
+  evidence: unit_code/value_type validation in operation updateCommonSettings
+- canonical_id: REQ-059
+  status: data-constraint
+  evidence: GLOBAL-only scope validation in operation updateCommonSettings
+- canonical_id: REQ-060
+  status: out-of-scope
+  evidence: 신규 인증방식과 대량처리 구현방식은 operation mapping 대상이 아니다.
 - canonical_id: REQ-001
   status: covered
   evidence: operation listUsers,updateUserUsage,replaceUserBusinessRoles

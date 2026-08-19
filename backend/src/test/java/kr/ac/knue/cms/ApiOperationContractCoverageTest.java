@@ -11,6 +11,10 @@ import kr.ac.knue.cms.code.CodeGroupController;
 import kr.ac.knue.cms.code.DetailCodeController;
 import kr.ac.knue.cms.common.AdminMapper;
 import kr.ac.knue.cms.common.ChangeHistoryService;
+import kr.ac.knue.cms.commonsetting.CommonSettingController;
+import kr.ac.knue.cms.commonsetting.CommonSettingItem;
+import kr.ac.knue.cms.commonsetting.CommonSettingsResponse;
+import kr.ac.knue.cms.commonsetting.CommonSettingService;
 import kr.ac.knue.cms.menu.MenuInformationController;
 import kr.ac.knue.cms.menu.MenuStructureController;
 import kr.ac.knue.cms.menu.MyMenuController;
@@ -59,7 +63,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     MyMenuController.class,
     MenuPermissionController.class,
     CodeGroupController.class,
-    DetailCodeController.class
+    DetailCodeController.class,
+    CommonSettingController.class
 })
 class ApiOperationContractCoverageTest {
     @Autowired MockMvc mvc;
@@ -69,6 +74,7 @@ class ApiOperationContractCoverageTest {
     @MockBean UserMapper userMapper;
     @MockBean AdminMapper adminMapper;
     @MockBean ChangeHistoryService changeHistoryService;
+    @MockBean CommonSettingService commonSettingService;
     @MockBean MyMenuService myMenuService;
     @MockBean AuthorizationService authorizationService;
 
@@ -102,7 +108,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void post_auth_logout_revokes_active_session_and_expires_cookie() throws Exception {
+    void post_auth_logout_covers_business_validation_side_effect_and_revoked_state_transition() throws Exception {
         mvc.perform(post("/api/auth/logout").cookie(new jakarta.servlet.http.Cookie("SESSION", "SESSION-ACTIVE-1")))
             .andExpect(status().isOk())
             .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")))
@@ -128,7 +134,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void patch_users_usage_updates_use_yn_and_change_history_side_effect() throws Exception {
+    void patch_users_usage_covers_business_validation_and_change_history_side_effect() throws Exception {
         when(userManagementService.updateUsage("U10002", "N", "휴직")).thenReturn(Map.of("userId", "U10002", "useYn", "N", "changeHistoryRecorded", true));
         mvc.perform(patch("/api/users/U10002/usage").contentType("application/json").content("{\"useYn\":\"N\",\"staffName\":\"원천변경금지\",\"changeReason\":\"휴직\"}"))
             .andExpect(status().isOk())
@@ -138,7 +144,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void put_users_roles_replaces_manual_roles_and_returns_side_effect_contract() throws Exception {
+    void put_users_roles_covers_business_validation_and_user_role_change_history_side_effect() throws Exception {
         when(userManagementService.replaceRoles(eq("U10002"), any(), eq("권한변경"))).thenReturn(Map.of("userId", "U10002", "roleCodes", "R02", "changeHistoryRecorded", true));
         mvc.perform(put("/api/users/U10002/roles").contentType("application/json").content("{\"roleCodes\":[\"R02\"],\"changeReason\":\"권한변경\"}"))
             .andExpect(status().isOk())
@@ -160,7 +166,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void put_organizations_relations_records_relation_and_change_history() throws Exception {
+    void put_organizations_relations_covers_business_validation_and_relation_change_history_side_effect() throws Exception {
         when(userMapper.listOrganizationRelations("ORG100")).thenReturn(List.of(), List.of(Map.of("organizationCode", "ORG100", "parentOrganizationCode", "ROOT")));
         mvc.perform(put("/api/organizations/ORG100/relations").contentType("application/json").content("{\"parentOrganizationCode\":\"ROOT\",\"effectiveStartDate\":\"2026-08-01\",\"effectiveEndDate\":\"2026-12-31\",\"changeReason\":\"조직개편\"}"))
             .andExpect(status().isOk())
@@ -170,8 +176,8 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void get_roles_post_roles_and_put_roles_cover_role_side_effects() throws Exception {
-        when(adminMapper.listRoles(anyMap())).thenReturn(List.of(Map.of("roleCode", "R02", "roleName", "부서관리자")));
+    void get_roles_post_roles_and_put_roles_cover_business_validation_side_effects_and_default_data_scope() throws Exception {
+        when(adminMapper.listRoles(anyMap())).thenReturn(List.of(Map.<String, Object>of("roleCode", "R02", "roleName", "부서관리자", "defaultDataScope", "ORG")));
         when(adminMapper.updateRole(eq("R02"), anyMap())).thenReturn(1);
         mvc.perform(get("/api/roles?roleCode=R02"))
             .andExpect(status().isOk())
@@ -181,7 +187,8 @@ class ApiOperationContractCoverageTest {
             .andExpect(jsonPath("$.data[0].roleName").value("부서관리자"));
         mvc.perform(put("/api/roles/R02").contentType("application/json").content("{\"purpose\":\"관리\",\"assignmentCriteria\":\"MANUAL\",\"defaultDataScope\":\"ORG\",\"changeReason\":\"수정\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data[0].roleCode").value("R02"));
+            .andExpect(jsonPath("$.data[0].roleCode").value("R02"))
+            .andExpect(jsonPath("$.data[0].defaultDataScope").value("ORG"));
         verify(adminMapper).createRole(anyMap());
         verify(adminMapper).updateRole(eq("R02"), anyMap());
         verify(changeHistoryService).record(eq("role"), eq("R02"), eq("CREATE"), any(), any(), anyString(), eq("등록"));
@@ -189,7 +196,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void user_role_operations_grant_update_and_revoke_manual_assignments() throws Exception {
+    void user_role_operations_cover_business_validation_side_effects_and_change_history_state_transitions() throws Exception {
         List<Map<String, Object>> activeAssignment = List.of(Map.<String, Object>of("assignmentId", 10, "userId", "U10002", "roleCode", "R02", "status", "ACTIVE"));
         List<Map<String, Object>> revokedAssignment = List.of(Map.<String, Object>of("assignmentId", 10, "userId", "U10002", "roleCode", "R02", "status", "REVOKED"));
         when(adminMapper.listUserRoles(anyMap())).thenReturn(activeAssignment, activeAssignment, activeAssignment, revokedAssignment);
@@ -214,7 +221,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void menu_operations_cover_list_create_update_tree_parent_and_reorder_side_effects() throws Exception {
+    void menu_operations_cover_business_validation_side_effects_and_change_history() throws Exception {
         when(adminMapper.listMenus(anyMap())).thenReturn(List.of(Map.of("menuId", "M100", "menuName", "사용자관리", "displayOrder", 1)));
         when(adminMapper.updateMenu(eq("M100"), anyMap())).thenReturn(1);
         mvc.perform(get("/api/menus?menuName=사용자"))
@@ -239,6 +246,10 @@ class ApiOperationContractCoverageTest {
         verify(adminMapper).updateMenu(eq("M100"), anyMap());
         verify(adminMapper).updateMenuParent("M100", "ROOT");
         verify(adminMapper).updateMenuOrder("M100", 1);
+        verify(changeHistoryService).record(eq("menu"), eq("M100"), eq("CREATE"), any(), any(), anyString(), eq("등록"));
+        verify(changeHistoryService).record(eq("menu"), eq("M100"), eq("UPDATE"), any(), any(), anyString(), eq("수정"));
+        verify(changeHistoryService).record(eq("menu"), eq("M100"), eq("UPDATE"), any(), any(), anyString(), eq("부모변경"));
+        verify(changeHistoryService).record(eq("menu"), eq("reorder"), eq("UPDATE"), any(), any(), anyString(), eq("순서변경"));
     }
 
     @Test
@@ -259,7 +270,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void menu_permissions_get_and_put_upsert_authorization_side_effect() throws Exception {
+    void menu_permissions_get_and_put_cover_business_validation_and_authorization_side_effect() throws Exception {
         when(adminMapper.listMenuPermissions(anyMap())).thenReturn(List.of(Map.of("targetType", "ROLE", "targetId", "R02", "menuId", "M100", "decision", "ALLOW")));
         when(authorizationService.canAccess(anyString(), eq("/api/menu-permissions"))).thenReturn(true);
         mvc.perform(get("/api/menu-permissions?targetType=ROLE"))
@@ -274,7 +285,7 @@ class ApiOperationContractCoverageTest {
     }
 
     @Test
-    void code_group_and_detail_code_operations_cover_tree_create_update_side_effects() throws Exception {
+    void code_group_and_detail_code_operations_cover_business_validation_side_effects() throws Exception {
         when(adminMapper.listCodeGroups(anyMap())).thenReturn(List.of(Map.of("groupId", "CG100", "groupName", "공통코드")));
         when(adminMapper.listDetailCodes("CG100")).thenReturn(List.of(Map.of("groupId", "CG100", "codeValue", "D100", "codeName", "상세")));
         when(adminMapper.updateCodeGroup(eq("CG100"), anyMap())).thenReturn(1);
@@ -304,5 +315,32 @@ class ApiOperationContractCoverageTest {
         verify(adminMapper).updateCodeGroup(eq("CG100"), anyMap());
         verify(adminMapper).createDetailCode(eq("CG100"), anyMap());
         verify(adminMapper).updateDetailCode(eq("CG100"), eq("D100"), anyMap());
+        verify(changeHistoryService).record(eq("code_group"), eq("CG100"), eq("CREATE"), any(), any(), anyString(), eq("등록"));
+        verify(changeHistoryService).record(eq("code_group"), eq("CG100"), eq("UPDATE"), any(), any(), anyString(), eq("수정"));
+        verify(changeHistoryService).record(eq("detail_code"), eq("CG100:D100"), eq("CREATE"), any(), any(), anyString(), eq("등록"));
+        verify(changeHistoryService).record(eq("detail_code"), eq("CG100:D100"), eq("UPDATE"), any(), any(), anyString(), eq("수정"));
+    }
+
+    @Test
+    void common_settings_get_and_put_cover_business_validation_side_effect_setting_key_and_setting_value() throws Exception {
+        CommonSettingItem item = new CommonSettingItem();
+        item.setSettingKey("sessionIdleMinutes");
+        item.setSettingName("세션 유휴시간");
+        item.setSettingValue("30");
+        item.setUnitCode("MINUTE");
+        item.setValueType("INTEGER");
+        item.setScopeType("GLOBAL");
+        item.setDisplayOrder(1);
+        when(commonSettingService.getCommonSettings()).thenReturn(new CommonSettingsResponse(List.of(item)));
+        when(commonSettingService.updateCommonSettings(anyMap())).thenReturn(new CommonSettingsResponse(List.of(item)));
+
+        mvc.perform(get("/api/system/common-settings"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].settingKey").value("sessionIdleMinutes"))
+            .andExpect(jsonPath("$.data.items[0].scopeType").value("GLOBAL"));
+        mvc.perform(put("/api/system/common-settings").contentType("application/json").content("{\"sessionIdleMinutes\":30,\"pageSize\":50,\"defaultSearchPeriodDays\":7,\"bulkQueryThresholdCount\":1000,\"longRunningTaskNoticeSeconds\":60,\"changeReason\":\"운영 기준 변경\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.items[0].settingValue").value("30"));
+        verify(commonSettingService).updateCommonSettings(anyMap());
     }
 }

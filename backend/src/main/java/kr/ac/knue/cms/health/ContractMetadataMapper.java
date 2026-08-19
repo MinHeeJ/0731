@@ -30,4 +30,20 @@ public interface ContractMetadataMapper {
         ORDER BY output_key
         """)
     List<Map<String, Object>> listRequiredOutputs();
+
+    @Select("""
+        SELECT
+          scope_id as \"scopeId\",
+          feature_code as \"featureCode\",
+          feature_name as \"featureName\",
+          screen_id as \"screenId\",
+          route_path as \"routePath\",
+          api_path as \"apiPath\",
+          primary_entity as \"primaryEntity\",
+          status as \"status\"
+        FROM c_m_s_1401
+        WHERE use_yn = 'Y'
+        ORDER BY feature_code, screen_id
+        """)
+    List<Map<String, Object>> listCms1401Scope();
 }

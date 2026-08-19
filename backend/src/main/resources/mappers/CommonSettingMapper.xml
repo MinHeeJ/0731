@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="kr.ac.knue.cms.commonsetting.CommonSettingMapper">
+  <select id="listGlobalSettings" resultType="kr.ac.knue.cms.commonsetting.CommonSettingItem">
+    SELECT
+      setting_key AS "settingKey",
+      setting_name AS "settingName",
+      setting_value AS "settingValue",
+      value_type AS "valueType",
+      unit_code AS "unitCode",
+      scope_type AS "scopeType",
+      display_order AS "displayOrder"
+    FROM system_common_setting
+    WHERE scope_type = 'GLOBAL'
+      AND use_yn = 'Y'
+      AND deleted_at IS NULL
+    ORDER BY display_order, setting_key
+  </select>
+
+  <update id="updateSettingValue">
+    UPDATE system_common_setting
+    SET setting_value = #{settingValue},
+        change_reason = #{changeReason},
+        updated_at = now()
+    WHERE setting_key = #{settingKey}
+      AND scope_type = 'GLOBAL'
+      AND use_yn = 'Y'
+      AND deleted_at IS NULL
+  </update>
+
+  <select id="countNonGlobalScopes" resultType="int">
+    SELECT count(*) FROM system_common_setting WHERE scope_type &lt;&gt; 'GLOBAL'
+  </select>
+
+  <select id="countScopeColumns" resultType="int">
+    SELECT count(*)
+    FROM information_schema.columns
+    WHERE table_name = 'system_common_setting'
+      AND column_name IN ('user_id', 'business_category')
+  </select>
+
+  <select id="countChangeHistory" resultType="int">
+    SELECT count(*) FROM change_history WHERE entity_name = #{entityName}
+  </select>
+</mapper>
